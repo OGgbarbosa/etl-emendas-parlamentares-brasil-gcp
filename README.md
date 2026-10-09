@@ -1,130 +1,93 @@
-# Projeto de Análise de Emendas Parlamentares (ETL no Databricks)
+# Projeto de Análise de Emendas Parlamentares (ETL no GCP)
 
 ![Status](https://img.shields.io/badge/status-em%20desenvolvimento-yellow?style=for-the-badge&logo=git)
 
-> [!NOTE]
-> **🚧 Projeto em Desenvolvimento:** Este repositório está em fase ativa de construção e aprimoramento. A ingestão da camada **Bronze** está concluída e validada; as transformações das camadas **Silver** e **Gold** bem como os dashboards no Databricks Genie estão sendo desenvolvidos nas próximas etapas.
-
-Este projeto tem como objetivo processar e analisar dados de **Emendas Parlamentares** através de um pipeline de ETL moderno na plataforma Databricks. A solução utiliza a **Arquitetura Medalhão (Medallion Architecture)** com Unity Catalog para estruturar os dados e o **Databricks Genie** para a criação de painéis e consultas em linguagem natural.
+Este projeto tem como objetivo processar e analisar dados de **Emendas Parlamentares** através de um pipeline de ETL moderno na plataforma **Google Cloud Platform (GCP)**. A solução utiliza o **Cloud Storage (GCS)** para a camada Landing/Raw e o **BigQuery** para estruturação e análise dos dados, com processamento em memória de alta performance via **Polars**.
 
 ## 🎯 Objetivo
 
-Construir um fluxo de ingestão, transformação e agregação (ETL) dos dados de Emendas Parlamentares. Os dados brutos são recebidos em formato CSV, refinados ao longo de camadas estruturadas em formato Delta (Bronze, Silver e Gold) utilizando o Unity Catalog, e finalmente disponibilizados na camada Gold. A camada Gold servirá como base de conhecimento estruturada para o **Databricks Genie**, onde usuários finais poderão gerar dashboards e fazer perguntas de negócio utilizando linguagem natural.
+Construir um fluxo de ingestão, transformação e agregação (ETL) dos dados de Emendas Parlamentares. Os dados brutos são recebidos em formato CSV, refinados para o formato colunar Parquet em memória com metadados de auditoria (`_ingestion_timestamp`, `_source_file`) e carregados para o Google Cloud (GCS / BigQuery).
 
-## 🏗️ Arquitetura de Dados (Medalhão)
+## 🏗️ Arquitetura de Dados
 
 ```mermaid
 flowchart LR
-    subgraph Raw ["Landing Zone (Volumes)"]
+    subgraph Raw ["Landing Zone (Cloud Storage)"]
         CSV["Arquivos CSV Brutos<br/>(ISO-8859-1 / UTF-8)"]
     end
 
-    subgraph Bronze ["Camada Bronze (Delta)"]
-        B1["bronze_emendas_parlamentares"]
-        B2["bronze_emendas_convenios"]
-        B3["bronze_emendas_favorecidos"]
+    subgraph Processing ["Processamento & Transformação"]
+        Polars["Polars / Python<br/>(Conversão Parquet + Auditoria)"]
     end
 
-    subgraph Silver ["Camada Silver (Delta)"]
-        S1["silver_emendas_limpas"]
-        S2["silver_convenios_favorecidos"]
+    subgraph DWH ["Google BigQuery"]
+        Bronze["Camada Bronze (Raw Parquet)"]
+        Silver["Camada Silver (Normalizada)"]
+        Gold["Camada Gold (Métricas & Agregações)"]
     end
 
-    subgraph Gold ["Camada Gold (Delta)"]
-        G1["gold_metricas_emendas"]
-    end
-
-    subgraph Consumption ["Consumo & BI"]
-        Genie["Databricks Genie / Dashboards"]
-    end
-
-    CSV --> Bronze
+    CSV --> Polars
+    Polars --> Bronze
     Bronze --> Silver
     Silver --> Gold
-    Gold --> Genie
 ```
-
-- **Raw (Volumes do Unity Catalog):** Área de pouso (*Landing Zone*) onde os arquivos originais (`.csv`) são ingeridos e armazenados sem nenhuma modificação.
-- **Camada Bronze:** Ingestão dos dados brutos do Volume para Tabelas Delta. Os nomes de colunas são sanitizados para o padrão `snake_case` e os dados mantêm a granularidade de origem (as-is), ganhando performance e versionamento.
-- **Camada Silver:** Limpeza, padronização de tipos de dados, tratamentos de nulos, deduplicação e cruzamento (*join*) de informações (ex: Emendas com Convênios e Favorecidos).
-- **Camada Gold:** Dados agregados e modelados para o negócio, prontos para consumo por ferramentas de BI e pelo **Databricks Genie** para relatórios gerenciais e análises interativas.
 
 ## ⚙️ Stack Tecnológica
 
-- **Linguagem:** Python 3.10+ (PySpark, Databricks SDK)
-- **Plataforma de Dados:** Databricks (Databricks Asset Bundles - DABs, Delta Live Tables)
-- **Governança e Armazenamento:** Unity Catalog (Volumes e Delta Lake)
-- **Qualidade & Testes:** `pytest`, `chispa`
-- **Visualização e BI:** Databricks Genie
+- **Linguagem & Processamento:** Python 3.12, `polars`, `pandas`
+- **Nuvem & Armazenamento:** Google Cloud Platform (BigQuery, Cloud Storage)
+- **Gerenciador de Dependências:** `uv`
+- **Linter & Qualidade de Código:** `ruff`
+- **Testes Unitários:** `pytest`
+- **CI/CD:** GitHub Actions
 
 ## 📂 Estrutura do Projeto
 
 ```
 projeto/
-├── databricks.yml                      # Configuração do Databricks Asset Bundle (DAB)
-├── pyproject.toml                      # Dependências, empacotamento e configuração do pytest
-├── notebooks/
-│   ├── projeto_inicial.ipynb           # Notebook de provisionamento (catálogo, schemas, volume)
-│   └── sample_notebook.ipynb           # Notebook interativo de validação
+├── .github/workflows/
+│   └── ci_cd.yml                      # Pipeline de CI (Ruff + Pytest) e CD (Deploy GCP)
+├── pyproject.toml                     # Configurações do projeto, ruff, pytest e dependências
+├── uv.lock                            # Lockfile reproduzível do uv
+├── database_sample/                   # Amostras leves para validação em CI
 ├── src/
-│   ├── etl_emendas_parlamentares/      # Pacote Python principal
-│   │   ├── __init__.py
-│   │   ├── main.py                     # Entrypoint do job Databricks
-│   │   └── emendas.py                  # Leitura de CSVs do Volume e sanitização de colunas
-│   └── etl_emendas_parlamentares_etl/  # Pipeline Lakeflow / DLT
-│       ├── README.md
-│       ├── explorations/               # Análises exploratórias
-│       └── transformations/            # Definições de tabelas DLT (Bronze → Silver → Gold)
-│           └── bronze_emendas.py       # Tabelas Bronze Delta Live Tables
-├── resources/                          # Definições YAML de jobs e pipelines do bundle
-├── tests/                              # Testes unitários locais automatizados
-│   ├── conftest.py                     # Fixture de SparkSession local para testes
-│   └── emendas_test.py                 # Testes de sanitização e lógica de leitura
-├── database/                           # CSVs originais baixados localmente (ignorado no git)
-└── .gitignore                          # Arquivos e credenciais ignorados
+│   ├── conexao/
+│   │   └── big_query.py               # Conexão e autenticação com Google BigQuery
+│   ├── processamento/
+│   │   └── csv_parquet.py             # Processamento e conversão de CSV para Parquet
+│   └── etl_emendas_parlamentares/
+│       ├── __init__.py
+│       └── emendas.py                 # Funções de sanitização e tratamento de colunas
+└── tests/
+    ├── conftest.py                    # Configurações globais do pytest
+    └── emendas_test.py                # Testes unitários de sanitização de colunas
 ```
 
 ## 🚀 Como Executar
 
-### 1. Pré-requisitos e Ambiente Local
+### 1. Pré-requisitos e Ambiente Local com `uv`
 
-1. Crie e ative o ambiente virtual Python:
+1. Instale o [uv](https://docs.astral.sh/uv/) (caso não tenha instalado).
+2. Sincronize as dependências do ambiente:
    ```bash
-   python -m venv .venv
-   .venv\Scripts\activate   # No Windows
-   # source .venv/bin/activate  # No Linux/macOS
+   uv sync
    ```
-2. Instale as dependências:
+3. Execute os testes unitários:
    ```bash
-   pip install -e .
-   pip install pytest chispa
+   uv run pytest
    ```
-3. Execute os testes unitários locais:
+4. Execute o linter:
    ```bash
-   pytest
+   uv run ruff check .
    ```
 
-### 2. Configuração do Databricks CLI
+### 2. Execução dos Scripts
 
-Configure o perfil de autenticação:
-```bash
-databricks configure --profile DATALAKE_EXs
-```
-
-### 3. Provisionamento e Deploy
-
-1. Execute o notebook `notebooks/projeto_inicial.ipynb` para criar o catálogo (`datalake_emendas`), schemas (`bronze`, `silver`, `gold`) e volume (`raw`).
-2. Faça o upload dos arquivos CSV para o volume `/Volumes/datalake_emendas/bronze/raw/`.
-3. Valide o bundle:
-   ```bash
-   databricks bundle validate --profile DATALAKE_EXs
-   ```
-4. Realize o deploy para o workspace do Databricks:
-   ```bash
-   databricks bundle deploy --profile DATALAKE_EXs
-   ```
-5. Execute a pipeline ou o job:
-   ```bash
-   databricks bundle run etl_emendas_parlamentares_etl --profile DATALAKE_EXs
-   ```
-
+- Testar conexão com BigQuery:
+  ```bash
+  uv run python src/conexao/big_query.py
+  ```
+- Processar arquivos CSV para Parquet:
+  ```bash
+  uv run python src/processamento/csv_parquet.py
+  ```
