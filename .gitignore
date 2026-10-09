@@ -21,3 +21,6 @@ database/
 scratch/**
 !scratch/README.md
 **/explorations/**
+
+
+gcp-credentials.json
