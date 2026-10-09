@@ -29,9 +29,13 @@ def processar_csv_para_parquet(caminho_csv: str) -> io.BytesIO:
 
 if __name__ == "__main__":
     import glob
+    import os
     
-    # Busca todos os arquivos CSV na pasta database
-    arquivos_csv = glob.glob("database/*.csv")
+    # Se estiver rodando no GitHub Actions, a pasta database não existirá, então usamos o sample
+    pasta_origem = "database" if os.path.exists("database") and glob.glob("database/*.csv") else "database_sample"
+    arquivos_csv = glob.glob(f"{pasta_origem}/*.csv")
+    
+    print(f"Lendo arquivos da pasta: {pasta_origem}")
     
     if not arquivos_csv:
         print("Nenhum arquivo CSV encontrado na pasta 'database'.")

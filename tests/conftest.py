@@ -90,13 +90,16 @@ def pytest_configure(config: pytest.Config):
     """Configure pytest session."""
     if not HAS_DB_CONNECT:
         return
-    with _allow_stderr_output(config):
-        _enable_fallback_compute()
+    try:
+        with _allow_stderr_output(config):
+            _enable_fallback_compute()
 
-        # Initialize Spark session eagerly, so it is available even when
-        # SparkSession.builder.getOrCreate() is used. For DB Connect 15+,
-        # we validate version compatibility with the remote cluster.
-        if hasattr(DatabricksSession.builder, "validateSession"):
-            DatabricksSession.builder.validateSession().getOrCreate()
-        else:
-            DatabricksSession.builder.getOrCreate()
+            # Initialize Spark session eagerly, so it is available even when
+            # SparkSession.builder.getOrCreate() is used. For DB Connect 15+,
+            # we validate version compatibility with the remote cluster.
+            if hasattr(DatabricksSession.builder, "validateSession"):
+                DatabricksSession.builder.validateSession().getOrCreate()
+            else:
+                DatabricksSession.builder.getOrCreate()
+    except Exception as e:
+        print(f"Ignorando Databricks Connect localmente/CI devido a falta de credenciais: {e}")
