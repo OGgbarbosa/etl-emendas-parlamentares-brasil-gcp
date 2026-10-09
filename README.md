@@ -51,13 +51,13 @@ projeto/
 ├── uv.lock                            # Lockfile reproduzível do uv
 ├── database_sample/                   # Amostras leves para validação em CI
 ├── src/
-│   ├── conexao/
-│   │   └── big_query.py               # Conexão e autenticação com Google BigQuery
-│   ├── processamento/
-│   │   └── csv_parquet.py             # Processamento e conversão de CSV para Parquet
 │   └── etl_emendas_parlamentares/
 │       ├── __init__.py
-│       └── emendas.py                 # Funções de sanitização e tratamento de colunas
+│       ├── emendas.py                 # Funções de sanitização e tratamento de colunas
+│       ├── conexao/
+│       │   └── big_query.py           # Conexão e autenticação com Google BigQuery
+│       └── processamento/
+│           └── csv_parquet.py         # Processamento e conversão de CSV para Parquet
 └── tests/
     ├── conftest.py                    # Configurações globais do pytest
     └── emendas_test.py                # Testes unitários de sanitização de colunas
@@ -85,9 +85,9 @@ projeto/
 
 - Testar conexão com BigQuery:
   ```bash
-  uv run python src/conexao/big_query.py
+  uv run python src/etl_emendas_parlamentares/conexao/big_query.py
   ```
 - Processar arquivos CSV para Parquet:
   ```bash
-  uv run python src/processamento/csv_parquet.py
+  uv run python src/etl_emendas_parlamentares/processamento/csv_parquet.py
   ```

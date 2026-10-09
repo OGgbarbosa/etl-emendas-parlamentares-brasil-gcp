@@ -74,7 +74,7 @@ jobs:
       - name: Executar script no BigQuery (Exemplo 3)
         run: |
           echo "Executando o script no ambiente do GitHub Actions conectando no BigQuery..."
-          uv run python src/conexao/big_query.py
+          uv run python src/etl_emendas_parlamentares/conexao/big_query.py
           
       - name: Enviar arquivos para o Cloud Storage (Exemplo 1)
         run: |
