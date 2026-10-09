@@ -9,6 +9,10 @@ dependencies = [
     #
     # LIMITATION: for pipelines, dependencies are cached during development;
     # add dependencies to the 'environment' section of your pipeline.yml file instead
+    "google-cloud-bigquery>=3.46.1",
+    "pandas>=2.3.3",
+    "polars>=2.0.0",
+    "python-dotenv>=1.2.4",
 ]
 
 [dependency-groups]
@@ -32,3 +36,12 @@ pythonpath = ["src"]
 
 [tool.ruff]
 line-length = 120
+
+[tool.ruff.lint]
+ignore = ["BLE001"]
+
+[tool.ruff.lint.per-file-ignores]
+"*.ipynb" = ["F821"]
+
+[tool.uv]
+link-mode = "copy"
