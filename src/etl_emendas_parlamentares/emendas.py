@@ -14,7 +14,7 @@ else:
 
 try:
     from databricks.sdk.runtime import spark
-except ImportError:
+except Exception:
     spark = None
 
 
