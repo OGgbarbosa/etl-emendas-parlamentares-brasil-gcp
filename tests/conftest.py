@@ -1,7 +1,10 @@
-import os, sys, pathlib
-from contextlib import contextmanager
-import json
 import csv
+import json
+import os
+import pathlib
+import sys
+from contextlib import contextmanager
+
 import pytest
 
 try:
@@ -19,6 +22,7 @@ except ImportError:
 
 
 from typing import Any
+
 
 @pytest.fixture()
 def spark() -> Any:

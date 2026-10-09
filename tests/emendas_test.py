@@ -1,4 +1,5 @@
 import pytest
+
 from etl_emendas_parlamentares.emendas import sanitizar_nome_coluna
 
 

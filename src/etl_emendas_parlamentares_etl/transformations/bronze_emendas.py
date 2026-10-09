@@ -1,9 +1,10 @@
 """Definições de tabelas Delta Live Tables (DLT) para a Camada Bronze."""
 
 from pyspark import pipelines as dp
+
 from etl_emendas_parlamentares.emendas import (
-    ler_emendas,
     ler_convenios,
+    ler_emendas,
     ler_favorecidos,
 )
 
