@@ -15,5 +15,5 @@ from etl_emendas_parlamentares.emendas import sanitizar_nome_coluna
     ],
 )
 def test_sanitizar_nome_coluna(entrada, esperado):
-    """Testa se a normalização de colunas remove acentos e caracteres especiais para Delta Lake."""
+    """Testa se a normalização de colunas remove acentos e caracteres especiais."""
     assert sanitizar_nome_coluna(entrada) == esperado
