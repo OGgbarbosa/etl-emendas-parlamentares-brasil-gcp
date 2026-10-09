@@ -1,0 +1,85 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+    branches:
+      - main
+      - master
+
+jobs:
+  ci-tests:
+    name: Run Linter and Tests (CI)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: "pyproject.toml"
+
+      - name: Install Dependencies
+        run: uv sync
+
+      - name: Run Ruff (Linter)
+        run: uv run ruff check .
+
+      - name: Run Pytest (Tests)
+        run: uv run pytest
+
+  cd-deploy-gcp:
+    name: Deploy to Google Cloud (CD)
+    runs-on: ubuntu-latest
+    needs: ci-tests
+    # Executa o deploy APENAS quando o push for feito na main (ex: quando um PR é aprovado)
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          # É necessário criar um secret no GitHub do projeto chamado GCP_CREDENTIALS 
+          # contendo o JSON da sua Service Account do GCP
+          credentials_json: ${{ secrets.GCP_CREDENTIALS }}
+
+      - name: Set up Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Install uv and dependencies
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "latest"
+          enable-cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: "pyproject.toml"
+
+      - name: Install Dependencies
+        run: uv sync
+
+      - name: Executar script no BigQuery (Exemplo 3)
+        run: |
+          echo "Executando o script no ambiente do GitHub Actions conectando no BigQuery..."
+          uv run python src/conexao/big_query.py
+          
+      - name: Enviar arquivos para o Cloud Storage (Exemplo 1)
+        run: |
+          echo "Copiando arquivos do projeto para o Storage..."
+          # Aqui estamos copiando a pasta src para dentro do seu bucket. 
+          # Você pode alterar 'src/' para os arquivos reais que deseja salvar no GCP.
+          gcloud storage cp -r src/ gs://bucket-landing-general/codigo/
+
