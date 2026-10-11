@@ -81,5 +81,5 @@ jobs:
           echo "Copiando arquivos do projeto para o Storage..."
           # Aqui estamos copiando a pasta src para dentro do seu bucket. 
           # Você pode alterar 'src/' para os arquivos reais que deseja salvar no GCP.
-          gcloud storage cp -r src/ gs://bucket-landing-general/codigo/
+          gcloud storage cp -r src/ gs://${{ vars.GCS_BUCKET_NAME || secrets.GCS_BUCKET_NAME }}/codigo/
 

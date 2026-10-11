@@ -1,6 +1,6 @@
 import pytest
 
-from etl_emendas_parlamentares.emendas import sanitizar_nome_coluna
+from etl_emendas_parlamentares.processamento.normalizar import normalizar_colunas
 
 
 @pytest.mark.parametrize(
@@ -14,6 +14,6 @@ from etl_emendas_parlamentares.emendas import sanitizar_nome_coluna
         ("Coluna-Com-Hífen", "coluna_com_hifen"),
     ],
 )
-def test_sanitizar_nome_coluna(entrada, esperado):
+def test_normalizar_colunas(entrada, esperado):
     """Testa se a normalização de colunas remove acentos e caracteres especiais."""
-    assert sanitizar_nome_coluna(entrada) == esperado
+    assert normalizar_colunas(entrada) == esperado

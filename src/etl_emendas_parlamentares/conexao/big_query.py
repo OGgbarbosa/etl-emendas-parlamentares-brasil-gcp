@@ -1,7 +1,7 @@
 import os
 
 from dotenv import load_dotenv
-from google.cloud import bigquery
+from google.cloud import bigquery, storage
 
 #teste
 
@@ -19,6 +19,12 @@ def get_bigquery_client() -> bigquery.Client:
     # Inicializa o cliente do BigQuery
     client = bigquery.Client(project=project_id)
     return client
+
+
+def get_storage_client() -> storage.Client:
+    """Retorna o cliente autenticado do Google Cloud Storage."""
+    project_id = os.getenv("GCP_PROJECT_ID")
+    return storage.Client(project=project_id)
 
 if __name__ == "__main__":
     # Testando a conexão

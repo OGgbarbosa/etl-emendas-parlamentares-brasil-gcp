@@ -4,26 +4,31 @@ from datetime import datetime, timezone
 
 import polars as pl
 
+from etl_emendas_parlamentares.processamento.normalizar import normalizar_colunas
+
 
 def processar_csv_para_parquet(caminho_csv: str) -> io.BytesIO:
     """Lê o CSV, adiciona metadados da Bronze e serializa em memória como Parquet."""
     print(f"Lendo arquivo local: {caminho_csv}...")
-    
-    # infer_schema_length=10000 evita falhas de inferência em arquivos heterogêneos
-    df = pl.read_csv(caminho_csv, infer_schema_length=10000, encoding='latin1')
+
+    # infer_schema_length=0 garante leitura fiel de dados brutos como String (evita falha com códigos alfanuméricos)
+    df = pl.read_csv(caminho_csv, separator=";", infer_schema_length=0, encoding="latin1")
+
+    # Sanitiza todos os nomes de colunas para snake_case (sem acentos/espaços)
+    df = df.rename({col: normalizar_colunas(col) for col in df.columns})
 
     # Inclusão de colunas de auditoria indispensáveis para a camada Bronze
     nome_arquivo = os.path.basename(caminho_csv)
     df_bronze = df.with_columns([
         pl.lit(datetime.now(timezone.utc)).alias("_ingestion_timestamp"),
-        pl.lit(nome_arquivo).alias("_source_file")
+        pl.lit(nome_arquivo).alias("_source_file"),
     ])
 
     # Gravação em buffer de memória (evita criar arquivo temporário em disco)
     buffer = io.BytesIO()
     df_bronze.write_parquet(buffer, compression="snappy")
     buffer.seek(0)
-    
+
     print(f"Processamento concluído: {df_bronze.shape[0]} linhas e {df_bronze.shape[1]} colunas.")
     return buffer
 
