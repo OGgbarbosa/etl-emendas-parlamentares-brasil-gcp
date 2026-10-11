@@ -7,6 +7,8 @@ __pycache__/
 *.egg-info
 build/
 dist/
+.pytest_cache/
+.ruff_cache/
 
 # Virtual environments
 .venv/
@@ -23,3 +25,4 @@ scratch/**
 
 
 gcp-credentials.json
+.databricks/

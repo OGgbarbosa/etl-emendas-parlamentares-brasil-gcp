@@ -53,14 +53,19 @@ projeto/
 ├── src/
 │   └── etl_emendas_parlamentares/
 │       ├── __init__.py
-│       ├── emendas.py                 # Funções de sanitização e tratamento de colunas
+│       ├── config/
+│       │   └── config.py              # Constantes e configurações de ambiente
 │       ├── conexao/
-│       │   └── big_query.py           # Conexão e autenticação com Google BigQuery
+│       │   └── big_query.py           # Conexão e clientes do BigQuery e Cloud Storage
+│       ├── ingestao/
+│       │   └── upload_bronze.py       # Ingestão e upload de Parquets para a Camada Bronze (GCS)
 │       └── processamento/
-│           └── csv_parquet.py         # Processamento e conversão de CSV para Parquet
+│           ├── normalizar.py          # Sanitização e normalização de nomes de colunas
+│           └── csv_parquet.py         # Processamento de CSVs para Parquet local (Bronze)
 └── tests/
-    ├── conftest.py                    # Configurações globais do pytest
-    └── emendas_test.py                # Testes unitários de sanitização de colunas
+    ├── test_normalizar.py             # Testes de normalização de colunas
+    ├── test_csv_parquet.py            # Testes de conversão CSV -> Parquet
+    └── test_upload_bronze.py          # Testes unitários com mocks de upload no GCS
 ```
 
 ## 🚀 Como Executar
@@ -83,11 +88,15 @@ projeto/
 
 ### 2. Execução dos Scripts
 
-- Testar conexão com BigQuery:
+- Testar conexão com BigQuery / Cloud Storage:
   ```bash
   uv run python src/etl_emendas_parlamentares/conexao/big_query.py
   ```
-- Processar arquivos CSV para Parquet:
+- Processar arquivos CSV para Parquet local (`data/bronze/`):
   ```bash
   uv run python src/etl_emendas_parlamentares/processamento/csv_parquet.py
+  ```
+- Fazer upload dos Parquets para a Camada Bronze no GCS (`1_bronze/`):
+  ```bash
+  uv run python src/etl_emendas_parlamentares/ingestao/upload_bronze.py
   ```
