@@ -1,3 +1,1 @@
-from etl_emendas_parlamentares import emendas
-
-__all__ = ["emendas"]
+"""Pacote principal do projeto ETL de Emendas Parlamentares."""

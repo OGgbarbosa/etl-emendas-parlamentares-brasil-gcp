@@ -76,10 +76,15 @@ jobs:
           echo "Executando o script no ambiente do GitHub Actions conectando no BigQuery..."
           uv run python src/etl_emendas_parlamentares/conexao/big_query.py
           
-      - name: Enviar arquivos para o Cloud Storage (Exemplo 1)
+      - name: Enviar arquivos para o Cloud Storage
+        env:
+          BUCKET_NAME: "${{ vars.GCS_BUCKET_NAME || secrets.GCS_BUCKET_NAME }}"
         run: |
-          echo "Copiando arquivos do projeto para o Storage..."
-          # Aqui estamos copiando a pasta src para dentro do seu bucket. 
-          # Você pode alterar 'src/' para os arquivos reais que deseja salvar no GCP.
-          gcloud storage cp -r src/ gs://${{ vars.GCS_BUCKET_NAME || secrets.GCS_BUCKET_NAME }}/codigo/
+          if [ -z "$BUCKET_NAME" ]; then
+            echo "[INFO] GCS_BUCKET_NAME nao configurada nas variaveis/secrets do GitHub. Pulando envio de codigo para o bucket."
+          else
+            echo "Copiando arquivos do projeto para o Storage..."
+            CLEAN_BUCKET=$(echo "$BUCKET_NAME" | sed 's|^gs://||' | sed 's|/$||')
+            gcloud storage cp -r src/ "gs://${CLEAN_BUCKET}/codigo/"
+          fi
 

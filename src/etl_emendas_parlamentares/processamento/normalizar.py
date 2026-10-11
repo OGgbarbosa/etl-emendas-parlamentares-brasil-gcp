@@ -12,7 +12,3 @@ def normalizar_colunas(nome: str) -> str:
     # Remove underscores duplicados e limpa pontas
     limpo = re.sub(r'_+', '_', substituido).strip('_').lower()
     return limpo or "coluna"
-
-
-# Alias para compatibilidade
-sanitizar_nome_coluna = normalizar_colunas

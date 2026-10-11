@@ -12,19 +12,16 @@ def get_bigquery_client() -> bigquery.Client:
     """
     Cria e retorna um cliente do BigQuery autenticado.
     A autenticação é feita automaticamente através da variável 
-    GOOGLE_APPLICATION_CREDENTIALS definida no .env
+    GOOGLE_APPLICATION_CREDENTIALS definida no .env ou pelas credenciais do GCP.
     """
     project_id = os.getenv("GCP_PROJECT_ID")
-    
-    # Inicializa o cliente do BigQuery
-    client = bigquery.Client(project=project_id)
-    return client
+    return bigquery.Client(project=project_id) if project_id else bigquery.Client()
 
 
 def get_storage_client() -> storage.Client:
     """Retorna o cliente autenticado do Google Cloud Storage."""
     project_id = os.getenv("GCP_PROJECT_ID")
-    return storage.Client(project=project_id)
+    return storage.Client(project=project_id) if project_id else storage.Client()
 
 if __name__ == "__main__":
     # Testando a conexão
