@@ -138,10 +138,12 @@ def test_processar_silver_dim_emenda(mock_carregar, tmp_path, bronze_sample_df):
     assert df_resultado.shape[0] == 3
     assert set(df_resultado["codigo_da_emenda"].to_list()) == {20240001, 20240002, 20240003}
 
-    # 3. 24 colunas oficiais
-    assert df_resultado.shape[1] == 24
+    # 3. 26 colunas (24 de negócio + 2 de auditoria)
+    assert df_resultado.shape[1] == 26
     assert "codigo_municipio_ibge" in df_resultado.columns
     assert "municipio" in df_resultado.columns
+    assert "dt_atualizacao" in df_resultado.columns
+    assert "_source_file" in df_resultado.columns
 
     # 4. Tipagem
     assert df_resultado.schema["codigo_da_emenda"] == pl.Int64
