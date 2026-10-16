@@ -23,3 +23,7 @@ ARQUIVOS_ALVO = [
 RAW_PREFIX = "0_raw"
 BRONZE_PREFIX = "1_bronze"
 DIRETORIO_BRONZE_LOCAL = os.getenv("DIRETORIO_BRONZE_LOCAL", "data/bronze")
+
+SILVER_PREFIX = "2_silver"
+SILVER_DATASET = os.getenv("SILVER_DATASET", "2_silver")
+DIRETORIO_SILVER_LOCAL = os.getenv("DIRETORIO_SILVER_LOCAL", "data/silver")
