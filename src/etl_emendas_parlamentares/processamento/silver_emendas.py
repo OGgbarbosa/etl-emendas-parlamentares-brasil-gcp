@@ -1,6 +1,7 @@
 import io
 import logging
 import os
+from datetime import datetime, timezone
 from pathlib import Path
 
 import polars as pl
@@ -110,6 +111,7 @@ def processar_silver_dim_emenda(
     """
     try:
         logger.info("Iniciando processamento da camada Silver: dim_emenda...")
+        nome_arquivo = "EmendasParlamentares.parquet"
         df_bronze = carregar_bronze_emendas(origem_local=origem_bronze)
 
         dim_emenda = (
@@ -221,6 +223,8 @@ def processar_silver_dim_emenda(
                     .then(pl.col("regiao").str.strip_chars())
                     .otherwise(pl.col("municipio").str.strip_chars())
                     .alias("municipio"),
+                    pl.lit(datetime.now(timezone.utc)).alias("dt_atualizacao"),
+                    pl.lit(nome_arquivo).alias("_source_file"),
                 ]
             )
             .unique(subset=["codigo_da_emenda"])
