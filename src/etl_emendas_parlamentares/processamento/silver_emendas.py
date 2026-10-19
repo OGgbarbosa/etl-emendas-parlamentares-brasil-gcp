@@ -70,7 +70,6 @@ def carregar_bronze_emendas(
 
     # 3. Fallback secundário: CSV local
     candidatos_csv = [
-        Path(diretorio_csv) / "EmendasParlamentares_utf8.csv",
         Path(diretorio_csv) / "EmendasParlamentares.csv",
         Path(origem_local) / "EmendasParlamentares.csv",
     ]
