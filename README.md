@@ -171,3 +171,19 @@ GOOGLE_APPLICATION_CREDENTIALS="gcp-credentials.json"
     ```bash
     uv run python src/etl_emendas_parlamentares/ingestao/upload_silver.py
     ```
+
+---
+
+## 🗺️ Roadmap de Evolução
+
+O projeto segue um plano de evolução estruturado para expandir a maturidade analítica e incorporar capacidades avançadas de Inteligência Artificial:
+
+- [x] **Camada Bronze (1_bronze):** Ingestão, auditoria e arquivamento colunar Parquet no Google Cloud Storage (GCS).
+- [ ] **Camada Silver (2_silver):** Finalização da modelagem dimensional (dimensões e tabelas fatos de convênios e favorecidos) com carga gerenciada no BigQuery.
+- [ ] **Camada Gold (3_gold):** Construção de data marts agregados com métricas orçamentárias (valores empenhados, liquidados, pagos e restos a pagar por município/função).
+- [ ] **Camada de Consumo Inteligente (Google Cloud Vertex AI):**
+  - **Agentes de IA & Text-to-SQL (Gemini no Vertex AI):** Interface conversacional em linguagem natural para permitir consultas intuitivas aos dados de emendas, convênios e execuções orçamentárias.
+  - **Detecção de Anomalias & Machine Learning:** Modelos preditivos para identificar padrões atípicos na distribuição de recursos e prazos de liquidação de convênios.
+  - **Busca Semântica & RAG (Retrieval-Augmented Generation):** Indexação vetorial de objetos e descrições de convênios no Vertex AI Vector Search para análises textuais aprofundadas e auditoria temática automatizada.
+- [ ] **Visualização Analítica:** Dashboards executivos e operacionais conectados via Looker Studio / Power BI.
+
