@@ -1,6 +1,7 @@
 from etl_emendas_parlamentares.ingestao.upload_bronze import upload_bronze
 from etl_emendas_parlamentares.ingestao.upload_silver import upload_silver
 from etl_emendas_parlamentares.processamento.csv_parquet import processar_csv_para_parquet
+from etl_emendas_parlamentares.processamento.silver_convenios import processar_silver_fato_convenios
 from etl_emendas_parlamentares.processamento.silver_emendas import processar_silver_dim_emenda
 
 
@@ -14,6 +15,7 @@ def run_bronze() -> None:
 
 def run_silver() -> None:
     processar_silver_dim_emenda()
+    processar_silver_fato_convenios()
     upload_silver()
 
 
