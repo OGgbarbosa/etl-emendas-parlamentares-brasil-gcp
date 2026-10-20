@@ -215,10 +215,8 @@ def test_processar_silver_fato_favorecidos(mock_carregar, tmp_path, bronze_favor
     val_row_f1_b = df_resultado.filter(pl.col("codigo_da_emenda") == 20240002)
     assert val_row_f1_b["valor_recebido"][0] == 250000.50
 
-    # 7. Tratamento de sentinelas (-1 em UF e Sem informação em Município viram null)
-    assert val_row_c4["uf_favorecido"][0] is None
-    assert val_row_c4["municipio_favorecido"][0] is None
-
-    # Registro com UF válida preserva UF
+    # 7. Preservação de UF e Município originais
+    assert val_row_c4["uf_favorecido"][0] == "-1"
+    assert val_row_c4["municipio_favorecido"][0] == "Sem informação"
     assert val_row_f1_b["uf_favorecido"][0] == "SP"
     assert val_row_f1_b["municipio_favorecido"][0] == "SÃO PAULO"

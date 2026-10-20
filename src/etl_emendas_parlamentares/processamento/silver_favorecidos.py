@@ -133,11 +133,8 @@ def processar_silver_fato_favorecidos(
                     pl.col("favorecido").str.strip_chars().alias("favorecido"),
                     pl.col("natureza_juridica").str.strip_chars().alias("natureza_juridica"),
                     pl.col("tipo_favorecido").str.strip_chars().alias("tipo_favorecido"),
-                    pl.col("uf_favorecido").replace("-1", None).str.strip_chars().alias("uf_favorecido"),
-                    pl.col("municipio_favorecido")
-                    .replace("Sem informação", None)
-                    .str.strip_chars()
-                    .alias("municipio_favorecido"),
+                    pl.col("uf_favorecido").str.strip_chars().alias("uf_favorecido"),
+                    pl.col("municipio_favorecido").str.strip_chars().alias("municipio_favorecido"),
                     pl.col("valor_recebido")
                     .str.replace_all(r"\.", "")
                     .str.replace(",", ".")
