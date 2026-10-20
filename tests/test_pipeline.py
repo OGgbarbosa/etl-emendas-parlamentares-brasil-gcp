@@ -16,12 +16,19 @@ def test_run_bronze(mock_upload_bronze):
 
 
 @patch("etl_emendas_parlamentares.pipeline.upload_silver")
+@patch("etl_emendas_parlamentares.pipeline.processar_silver_fato_favorecidos")
 @patch("etl_emendas_parlamentares.pipeline.processar_silver_fato_convenios")
 @patch("etl_emendas_parlamentares.pipeline.processar_silver_dim_emenda")
-def test_run_silver(mock_processar_emenda, mock_processar_convenios, mock_upload_silver):
+def test_run_silver(
+    mock_processar_emenda,
+    mock_processar_convenios,
+    mock_processar_favorecidos,
+    mock_upload_silver,
+):
     run_silver()
     mock_processar_emenda.assert_called_once()
     mock_processar_convenios.assert_called_once()
+    mock_processar_favorecidos.assert_called_once()
     mock_upload_silver.assert_called_once()
 
 
