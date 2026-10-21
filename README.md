@@ -3,7 +3,7 @@
 ![Status](https://img.shields.io/badge/status-em%20desenvolvimento-yellow?style=for-the-badge&logo=git)
 ![Python](https://img.shields.io/badge/python-3.12-blue?style=for-the-badge&logo=python)
 ![GCP](https://img.shields.io/badge/Google%20Cloud-BigQuery%20%7C%20GCS-red?style=for-the-badge&logo=google-cloud)
-![Polars](https://img.shields.io/badge/Polars-2.0-blueviolet?style=for-the-badge&logo=polars)
+![Polars](https://img.shields.io/badge/Polars-2.0.0-blueviolet?style=for-the-badge&logo=polars)
 
 Pipeline de Engenharia de Dados para extração, tratamento e carga analítica dos dados abertos de **Emendas Parlamentares do Brasil**, utilizando a plataforma **Google Cloud Platform (GCP)** com processamento colunar em memória via **Polars**.
 
@@ -65,7 +65,7 @@ flowchart TD
 
     subgraph Web_Scraping ["Web Scraping & Contexto (GCS) - planejado"]
         W_NEWS["Artigos & Notícias (Folha, EBC, Senado, Transparência)"]
-        W_DASH["Central das Emendas (##DASHBOARD)"]
+        W_DASH["Central das Emendas (Painel / Observatório)"]
     end
 
     subgraph Intelligence ["Google Cloud Vertex AI (RAG Híbrido) - planejado"]
@@ -105,7 +105,7 @@ flowchart TD
 | Volume e tempo | CSVs convertidos em Parquet de ~20 MB em média; pipeline completo em ~2 minutos. | Medido |
 | Bronze | Parquet (Snappy) arquivado no GCS: o bruto fica isolado do consumo externo, a baixo custo. | Implementado |
 | Silver | Tabelas nativas no BigQuery, com ingestão direta e foco em custo reduzido. | Implementado |
-| Qualidade | Emendas com código nulo ou vazio são descartadas na Silver (~8% a 18% da base bruta, conforme a entidade). | Parcial: sem reconciliação de linhas entre camadas |
+| Qualidade | Linhas com código "Sem informação" são expurgadas das fatos (ver tabela de reconciliação abaixo). Criação de tabelas de quarentena/rejeitados planejada. | Implementado (Fatos) / Quarentena planejada |
 | Sentinelas | Valores especiais já mapeados; regra de tratamento ainda em estudo. | Em estudo |
 | Modelagem | Fatos tratadas e validadas previamente; dimensões (autor, localidade, função) serão criadas se o consumo exigir. | Planejado |
 | Convênios (N:N) | Deduplicação com `QUALIFY` na Gold, após a exploração dos dados. | Planejado |
@@ -115,6 +115,24 @@ flowchart TD
 | Gold | Cada Data Mart responde a uma pergunta de negócio (empenhado, pago, UF, parlamentar). | Em andamento |
 | RAG híbrido | Dados oficiais do BigQuery como base, com artigos e notícias como contexto complementar. Custo de BigQuery e Vertex AI ainda não estimado. | Planejado |
 | GCP vs. Databricks | O projeto nasceu no Databricks (versão gratuita) e foi refeito no GCP para medir custo e esforço reais, e para testar execução híbrida: pipeline local, empacotável em Docker, com custo só de armazenamento e Vertex. | Decisão tomada |
+
+### 📊 Reconciliação de Integridade entre Camadas (Bronze ➔ Silver)
+
+Auditoria quantitativa e financeira dos registros expurgados no saneamento da Silver (motivado por `codigo_da_emenda` nulo ou literal `"Sem informação"`):
+
+| Entidade | Linhas Bronze (Bruto) | Linhas Silver (Fato) | Linhas Descartadas | % Linhas Descartadas | Métrica Financeira Avaliada | Valor Financeiro Descartado | % Valor Descartado |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| **Emendas** (`fato_emendas`) | 94.463 | 76.653 | 17.810 | 18,85% | Valor Empenhado | R$ 35,63 Bi | 10,31% |
+| **Convênios** (`fato_convenios`) | 85.104 | 75.867 | 9.237* | 10,85% | Valor Conveniado | R$ 25,81 Bi | 21,26% |
+| **Favorecidos** (`fato_favorecidos`) | 820.690 | 753.651 | 67.039 | 8,17% | Valor Pago | R$ 28,85 Bi | 10,29% |
+| **Total Auditado** | **1.000.257** | **906.171** | **94.086** | **9,41%** | - | **R$ 90,29 Bi** | - |
+
+*\* Em convênios, 9.190 registros foram expurgados por ausência de código de emenda e 47 por duplicidade na chave composta `[numero_convenio, codigo_da_emenda]`.*
+
+> [!NOTE]
+> **Diagnóstico das Linhas Sem Informação:**  
+> A investigação revelou que das 17.810 linhas descartadas em `fato_emendas`, **11.155 linhas (62,6%) pertencem ao ano de 2014**, período anterior à Emenda Constitucional nº 86/2015 (Orçamento Impositivo), quando os sistemas SIAFI/CGU ainda não preenchiam o código estruturado da emenda. O restante concentra-se em Emendas de Relator (RP9 - 3.561 linhas) e Emendas de Comissão (RP8 - 1.848 linhas) registradas com autor genérico ("RELATOR GERAL").  
+> **Próxima Evolução:** Para garantir rastreabilidade contábil total dos R$ 90,29 bilhões expurgados, o pipeline criará tabelas de quarentena (`rejeitados_emendas`, `rejeitados_convenios` e `rejeitados_favorecidos`) na camada Silver em vez de simplesmente descartá-las.
 
 ---
 
@@ -279,6 +297,7 @@ GOOGLE_APPLICATION_CREDENTIALS="gcp-credentials.json"
 
 - [x] **Camada Bronze (1_bronze):** Ingestão, auditoria e arquivamento colunar Parquet no Google Cloud Storage (GCS).
 - [x] **Camada Silver (2_silver) - fatos:** `fato_emendas`, `fato_convenios` e `fato_favorecidos` carregadas como tabelas nativas no BigQuery.
+  - [ ] **Tabelas de Quarentena / Rejeitados:** Criação de `rejeitados_emendas`, `rejeitados_convenios` e `rejeitados_favorecidos` para auditoria dos R$ 90 Bi sem código válido.
   - [ ] Tratamento de sentinelas (valores já mapeados, regra em estudo).
   - [ ] Dimensões (autor, localidade, função), conforme necessidade de consumo.
   - [ ] Reconciliação de contagem de linhas entre camadas (Raw → Bronze → Silver).
