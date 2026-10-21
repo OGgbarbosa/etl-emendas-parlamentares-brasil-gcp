@@ -18,14 +18,16 @@ Construir um pipeline ETL/ELT robusto e resiliente seguindo o padrão **Medallio
    - `fato_emendas`: Fato orçamentária consolidando dotações das emendas com 6 métricas monetárias (empenhado, liquidado, pago, restos a pagar inscritos/cancelados/pagos), autor, ano, classificação funcional e localização.
    - `fato_convenios`: Fato analítica tratando a relação $N:N$ entre emendas e instrumentos contratuais com valores alocados.
    - `fato_favorecidos`: Fato periódica mensal acumulada de transferências e pagamentos diretos por favorecido (CNPJ/CPF/Órgão).
-4. **Gold (3_gold)**: Construção de data marts agregados com métricas orçamentárias (valores empenhados, liquidados e pagos por parlamentar e localidade) para consumo em BI e inteligência analítica.
+4. **Gold (3_gold)**: Data Marts analíticos em SQL materializados no **Google BigQuery** e camada de **Views Semânticas** preparadas para consumo analítico e inteligência artificial.
+5. **Web Scraping & Contexto Não-Estruturado**: Ingestão de artigos, notícias e observatórios cívicos para enriquecimento qualitativo das análises.
+6. **Consumo Inteligente & Visualização**: Agente conversacional Gemini com RAG Híbrido no **Google Cloud Vertex AI** e portal analítico interativo em **Streamlit**.
 
 ---
 
 ## 🏗️ Arquitetura de Dados
 
 ```mermaid
-flowchart LR
+flowchart TD
     subgraph RawZone ["0_raw (Local / Landing)"]
         CSV_E["EmendasParlamentares.csv"]
         CSV_C["EmendasParlamentares_Convenios.csv"]
@@ -44,10 +46,33 @@ flowchart LR
         Proc_F["silver_favorecidos.py"]
     end
 
-    subgraph DWH ["2_silver (BigQuery Managed Tables)"]
+    subgraph DWH_Silver ["2_silver (BigQuery Managed Tables)"]
         S_EMENDA["fato_emendas (Orçamento Macro)"]
         S_CONV["fato_convenios (Instrumentos N:N)"]
         S_FAV["fato_favorecidos (Execução Favorecidos)"]
+    end
+
+    subgraph DWH_Gold ["3_gold (BigQuery Data Marts & Views)"]
+        G_PARL["gold_execucao_parlamentar"]
+        G_GEO["gold_distribuicao_geografica"]
+        G_POL["gold_politicas_publicas"]
+        G_FAV["gold_ranking_favorecidos"]
+        G_VIEW["view_ai_* (Views Semânticas)"]
+    end
+
+    subgraph Web_Scraping ["Web Scraping & Contexto (GCS)"]
+        W_NEWS["Artigos & Notícias (Folha, EBC, Senado, Transparência)"]
+        W_DASH["Central das Emendas (##DASHBOARD)"]
+    end
+
+    subgraph Intelligence ["Google Cloud Vertex AI (RAG Híbrido)"]
+        V_AGENT["Agente Gemini (Orquestrador)"]
+        V_STORE_BQ["Data Store 1: BigQuery Views"]
+        V_STORE_GCS["Data Store 2: Notícias GCS"]
+    end
+
+    subgraph Frontend ["Visualização Analítica"]
+        APP["App Streamlit (Portal Multi-Páginas)"]
     end
 
     CSV_E --> B_E
@@ -57,6 +82,14 @@ flowchart LR
     B_E --> Proc_E --> S_EMENDA
     B_C --> Proc_C --> S_CONV
     B_F --> Proc_F --> S_FAV
+
+    S_EMENDA & S_CONV & S_FAV --> G_PARL & G_GEO & G_POL & G_FAV --> G_VIEW
+
+    G_VIEW --> V_STORE_BQ --> V_AGENT
+    W_NEWS & W_DASH --> V_STORE_GCS --> V_AGENT
+
+    G_PARL & G_GEO & G_POL & G_FAV --> APP
+    V_AGENT --> APP
 ```
 
 ---
@@ -82,11 +115,27 @@ projeto_emendas/
 ├── pyproject.toml                     # Metadados, dependências, ruff e pytest configs
 ├── uv.lock                            # Lockfile reproduzível do uv
 ├── .env                               # Variáveis de ambiente (ignorado no git)
+├── app/                               # Aplicação Web Streamlit (Multi-páginas)
+│   ├── Home.py                        # Ponto de entrada e visão geral do portal
+│   └── pages/
+│       ├── 1_📊_Visao_Geral.py        # KPIs macro e métricas orçamentárias
+│       ├── 2_🏛️_Parlamentares.py       # Raio-X por deputado e senador
+│       ├── 3_🗺️_Mapa_Brasil.py         # Distribuição geográfica e municipal
+│       ├── 4_🏢_Beneficiarios.py       # Maiores recebedores e fornecedores
+│       └── 5_🤖_Assistente_IA.py       # Chatbot interativo com Gemini (Vertex AI)
 ├── database/                          # Dados brutos CSV locais (Portal da Transparência)
 ├── database_sample/                   # Amostras reduzidas para execução de testes em CI
 ├── data/
 │   ├── bronze/                        # Parquets intermediários gerados da camada Bronze
-│   └── silver/                        # Parquets gerados da Silver (fato_emendas, fato_convenios, fato_favorecidos)
+│   ├── silver/                        # Parquets gerados da Silver (fato_emendas, fato_convenios, fato_favorecidos)
+│   └── gold/                          # Diretório reservado para artefatos compilados da Gold
+├── sql/
+│   └── gold/                          # Scripts SQL dos Data Marts materializados no BigQuery
+│       ├── gold_execucao_parlamentar.sql
+│       ├── gold_distribuicao_geografica.sql
+│       ├── gold_politicas_publicas.sql
+│       ├── gold_ranking_favorecidos.sql
+│       └── gold_painel_convenios.sql
 ├── notebooks/
 │   └── projeto_inicial.ipynb          # Explorações interativas e prototipação de regras
 ├── src/
@@ -100,12 +149,15 @@ projeto_emendas/
 │       ├── ingestao/
 │       │   ├── upload_bronze.py       # Ingestão de arquivos Parquet no GCS
 │       │   └── upload_silver.py       # Carga direta em tabelas nativas gerenciadas no BigQuery
-│       └── processamento/
-│           ├── csv_parquet.py         # Conversão de CSV para Parquet com injeção de auditoria
-│           ├── normalizar.py          # Normalização de nomes de colunas (snake_case)
-│           ├── silver_emendas.py      # Modelagem da fato_emendas com métricas orçamentárias
-│           ├── silver_convenios.py    # Modelagem N:N da fato_convenios com tipagem monetária
-│           └── silver_favorecidos.py  # Modelagem periódica da fato_favorecidos com datas mensais
+│       ├── processamento/
+│       │   ├── csv_parquet.py         # Conversão de CSV para Parquet com injeção de auditoria
+│       │   ├── normalizar.py          # Normalização de nomes de colunas (snake_case)
+│       │   ├── silver_emendas.py      # Modelagem da fato_emendas com métricas orçamentárias
+│       │   ├── silver_convenios.py    # Modelagem N:N da fato_convenios com tipagem monetária
+│       │   └── silver_favorecidos.py  # Modelagem periódica da fato_favorecidos com datas mensais
+│       └── scraping/
+│           ├── __init__.py
+│           └── fontes.py              # Mapeamento das fontes de notícias e observatórios
 └── tests/
     ├── conftest.py                    # Fixtures e configurações globais do Pytest
     ├── test_csv_parquet.py            # Testes de conversão CSV -> Parquet
@@ -205,9 +257,22 @@ O projeto segue um plano de evolução estruturado para expandir a maturidade an
 
 - [x] **Camada Bronze (1_bronze):** Ingestão, auditoria e arquivamento colunar Parquet no Google Cloud Storage (GCS).
 - [x] **Camada Silver (2_silver):** Modelagem dimensional Star Schema completa (`fato_emendas`, `fato_convenios` e `fato_favorecidos`) com carga direta em tabelas nativas gerenciadas no BigQuery.
-- [ ] **Camada Gold (3_gold):** Construção de data marts agregados com métricas orçamentárias (valores empenhados, liquidados, pagos e restos a pagar por município/função).
+- [ ] **Camada Gold (3_gold - Em Andamento):**
+  - [x] Definição arquitetural dos Data Marts via SQL padronizado no BigQuery.
+  - [ ] Implementação e validação dos scripts analíticos em `sql/gold/`:
+    - `gold_execucao_parlamentar.sql` (visão parlamentar e taxas de execução)
+    - `gold_distribuicao_geografica.sql` (visão territorial por UF e municípios)
+    - `gold_politicas_publicas.sql` (visão setorial por função e subfunção)
+    - `gold_ranking_favorecidos.sql` (maiores fornecedores, ONGs e entidades)
+    - `gold_painel_convenios.sql` (descentralização e instrumentos federais)
+  - [ ] Camada de Views Semânticas de Consumo com metadados para IA (`view_ai_*`).
+- [ ] **Camada de Web Scraping & Contexto Não-Estruturado:**
+  - [x] Mapeamento das 6 fontes (Folha de S.Paulo, Agência Brasil/EBC, Agência Senado, Central das Emendas `##DASHBOARD`, Portal da Transparência, Transparência Brasil).
+  - [ ] Esteira de scraping para captura de notícias e armazenamento em `gs://.../raw/scraping/`.
 - [ ] **Camada de Consumo Inteligente (Google Cloud Vertex AI):**
-  - **Agentes de IA & Text-to-SQL (Gemini no Vertex AI):** Interface conversacional em linguagem natural para permitir consultas intuitivas aos dados de emendas, convênios e execuções orçamentárias sem necessidade de queries SQL manuais.
-  - **Detecção de Anomalias & Machine Learning:** Modelos preditivos para identificar padrões atípicos na distribuição de recursos e prazos de liquidação de convênios.
-  - **Busca Semântica & RAG (Retrieval-Augmented Generation):** Indexação vetorial de objetos e descrições de convênios no Vertex AI Vector Search para análises textuais aprofundadas e fiscalização temática automatizada.
-- [ ] **Visualização Analítica:** Dashboards executivos e operacionais conectados via Looker Studio / Power BI.
+  - [ ] RAG Híbrido no **Vertex AI Agent Builder** integrando BigQuery (dados oficiais auditáveis) e Cloud Storage (artigos e notícias de contexto).
+  - [ ] **Agente Gemini:** Interface conversacional em linguagem natural com raciocínio analítico e citações auditáveis de fontes.
+- [ ] **Visualização Analítica Interativa (Streamlit Web App):**
+  - [x] Estrutura base multi-páginas configurada em `app/`.
+  - [ ] Desenvolvimento dos dashboards interativos (Visão Geral, Parlamentares, Mapa Brasil, Beneficiários).
+  - [ ] Integração do chat interativo com o Agente do Vertex AI (`app/pages/5_🤖_Assistente_IA.py`).
