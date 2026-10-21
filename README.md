@@ -105,10 +105,10 @@ flowchart TD
 | Volume e tempo | CSVs convertidos em Parquet de ~20 MB em média; pipeline completo em ~2 minutos. | Medido |
 | Bronze | Parquet (Snappy) arquivado no GCS: o bruto fica isolado do consumo externo, a baixo custo. | Implementado |
 | Silver | Tabelas nativas no BigQuery, com ingestão direta e foco em custo reduzido. | Implementado |
-| Qualidade | Linhas com código "Sem informação" são expurgadas das fatos (ver tabela de reconciliação abaixo). Criação de tabelas de quarentena/rejeitados planejada. | Implementado (Fatos) / Quarentena planejada |
+| Qualidade | Linhas com código "Sem informação" são expurgadas das fatos (ver reconciliação auditada abaixo). Preservação com sentinela/quarentena planejada. | Implementado (Fatos) / Sentinela planejado |
 | Sentinelas | Valores especiais já mapeados; regra de tratamento ainda em estudo. | Em estudo |
 | Modelagem | Fatos tratadas e validadas previamente; dimensões (autor, localidade, função) serão criadas se o consumo exigir. | Planejado |
-| Convênios (N:N) | Deduplicação com `QUALIFY` na Gold, após a exploração dos dados. | Planejado |
+| Convênios (N:N) | Grão da fato_convenios definido como 1 linha por [convênio × emenda]. Na Gold, deduplicação com QUALIFY será usada apenas quando a métrica exigir valor físico único por convênio. | Modelado na Silver |
 | Favorecidos | Granularidade mensal, pois o valor empenhado pode ser pago ao longo de vários meses. | Implementado |
 | Carga | Hoje sobrescreve as tabelas (dados fixos, execução rápida). Com os dados semestrais, a ideia é migrar para MERGE incremental, após verificar se os arquivos antigos mudam a cada semestre. | Planejado |
 | Testes | 35 testes com mocks de GCS e BigQuery cobrindo o fluxo; testes de regra de negócio virão com as agregações da Gold. | Parcial |
@@ -118,22 +118,32 @@ flowchart TD
 
 ### 📊 Reconciliação de Integridade entre Camadas (Bronze ➔ Silver)
 
-Auditoria quantitativa e financeira dos registros expurgados no saneamento da Silver (motivado por `codigo_da_emenda` nulo ou literal `"Sem informação"`):
+> [!IMPORTANT]
+> **Data de Referência dos Dados:** Arquivos brutos extraídos do Portal da Transparência em **28/08/2026**.  
+> **Origem dos Cálculos:** Métricas auditadas e validadas sobre a base colunar da camada Bronze.
+
+Auditoria quantitativa e financeira dos registros expurgados no saneamento da Silver (motivado por `codigo_da_emenda` nulo ou literal `"Sem informação"`, além de deduplicações pontuais):
 
 | Entidade | Linhas Bronze (Bruto) | Linhas Silver (Fato) | Linhas Descartadas | % Linhas Descartadas | Métrica Financeira Avaliada | Valor Financeiro Descartado | % Valor Descartado |
 |---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
 | **Emendas** (`fato_emendas`) | 94.463 | 76.653 | 17.810 | 18,85% | Valor Empenhado | R$ 35,63 Bi | 10,31% |
 | **Convênios** (`fato_convenios`) | 85.104 | 75.867 | 9.237* | 10,85% | Valor Conveniado | R$ 25,81 Bi | 21,26% |
 | **Favorecidos** (`fato_favorecidos`) | 820.690 | 753.651 | 67.039 | 8,17% | Valor Pago | R$ 28,85 Bi | 10,29% |
-| **Total Auditado** | **1.000.257** | **906.171** | **94.086** | **9,41%** | - | **R$ 90,29 Bi** | - |
+| **Total de Registros** | **1.000.257** | **906.171** | **94.086** | **9,41%** | *(Valores não somados por sobreposição contábil)* | — | — |
 
-*\* Em convênios, 9.190 registros foram expurgados por ausência de código de emenda e 47 por duplicidade na chave composta `[numero_convenio, codigo_da_emenda]`.*
+*\* Dos 9.237 registros descartados em convênios: **9.190 linhas (R$ 25,81 Bi)** decorrem de ausência de código de emenda na fonte original, e **47 linhas (R$ 43,23 Mi)** referem-se a duplicatas estritas na chave composta `[numero_convenio, codigo_da_emenda]` tratadas na Silver sem perda de cobertura material.*
 
 > [!NOTE]
-> **Diagnóstico das Linhas Sem Informação:**  
-> A investigação revelou que das 17.810 linhas descartadas em `fato_emendas`, **11.155 linhas (62,6%) pertencem ao ano de 2014**, período anterior à Emenda Constitucional nº 86/2015 (Orçamento Impositivo), quando os sistemas SIAFI/CGU ainda não preenchiam o código estruturado da emenda. O restante concentra-se em Emendas de Relator (RP9 - 3.561 linhas) e Emendas de Comissão (RP8 - 1.848 linhas) registradas com autor genérico ("RELATOR GERAL").  
-> **Próxima Evolução:** Para garantir rastreabilidade contábil total dos R$ 90,29 bilhões expurgados, o pipeline criará tabelas de quarentena (`rejeitados_emendas`, `rejeitados_convenios` e `rejeitados_favorecidos`) na camada Silver em vez de simplesmente descartá-las.
-
+> **Diagnóstico Detalhado das 17.810 Linhas Sem Código em Emendas:**  
+> A investigação na base bruta explicou 100% dos registros descartados:
+> * **2014 (11.155 linhas - 62,6%):** Hipótese provável associada à transição de sistemas legados de registro orçamentário da CGU/SIAFI antes da Emenda Constitucional nº 86/2015 (Orçamento Impositivo).
+> * **Emendas de Relator - RP9 (3.561 linhas - 20,0%):** Registradas na fonte com autor genérico ("RELATOR GERAL") e sem código estruturado individualizado.
+> * **Emendas de Comissão - RP8 (1.848 linhas - 10,4%):** Registradas sem autor e código individualizado.
+> * **Outras Modalidades (1.246 linhas - 7,0%):** Compostas por 1.240 linhas de Emendas de Bancada (RP7) e 6 de Emendas Individuais entre 2015 e 2020 com código ausente na fonte original.
+>
+> **⚠️ Impacto Analítico sobre as RP9 e Alinhamento:**  
+> O expurgo atual das emendas sem código remove R$ 35,63 Bi empenhados e R$ 19,66 Bi pagos da `fato_emendas`, subestimando o volume de Emendas de Relator (RP9) e fazendo com que os totais da Silver divirjam dos números globais do Portal da Transparência.  
+> **Solução Arquitetural Planejada:** Em vez do descarte no filtro, as linhas sem código serão preservadas na fato com valor sentinela (`codigo_da_emenda = -1`) e uma coluna indicadora `codigo_emenda_informado = false` (ou direcionadas a uma tabela dedicada `rejeitados_emendas`), permitindo que a camada Gold decida se aplica o filtro conforme o objetivo da análise.
 ---
 
 ## ⚙️ Stack Tecnológica
@@ -297,10 +307,10 @@ GOOGLE_APPLICATION_CREDENTIALS="gcp-credentials.json"
 
 - [x] **Camada Bronze (1_bronze):** Ingestão, auditoria e arquivamento colunar Parquet no Google Cloud Storage (GCS).
 - [x] **Camada Silver (2_silver) - fatos:** `fato_emendas`, `fato_convenios` e `fato_favorecidos` carregadas como tabelas nativas no BigQuery.
-  - [ ] **Tabelas de Quarentena / Rejeitados:** Criação de `rejeitados_emendas`, `rejeitados_convenios` e `rejeitados_favorecidos` para auditoria dos R$ 90 Bi sem código válido.
-  - [ ] Tratamento de sentinelas (valores já mapeados, regra em estudo).
-  - [ ] Dimensões (autor, localidade, função), conforme necessidade de consumo.
-  - [ ] Reconciliação de contagem de linhas entre camadas (Raw → Bronze → Silver).
+  - [ ] **Preservação de Registros Sem Código (RP9/2014):** Migrar do expurgo rígido para atribuição de sentinela (`codigo_da_emenda = -1`, `codigo_emenda_informado = false`) ou tabela de quarentena, evitando a subestimação de R$ 35,6 Bi em empenhos.
+  - [ ] **Automatização da Reconciliação:** Geração automática de logs e métricas de reconciliação de linhas e valores entre camadas a cada execução do pipeline.
+  - [ ] Tratamento de sentinelas adicionais (valores já mapeados, regra em estudo).
+  - [ ] Dimensões (autor, localidade, função), conforme necessidade de consumo analítico.
   - [ ] Carga incremental com MERGE (definir chave natural e fallback na virada de semestre).
 - [ ] **Camada Gold (3_gold - Em Andamento):**
   - [x] Definição arquitetural dos Data Marts via SQL padronizado no BigQuery.
