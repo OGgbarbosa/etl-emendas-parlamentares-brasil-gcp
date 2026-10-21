@@ -39,11 +39,13 @@ def carregar_bronze_emendas(
     Returns:
         pl.DataFrame: DataFrame com os dados brutos da Bronze.
     """
-    # 1. Prioridade: Obter diretamente do Bucket GCS
+    nome_arquivo = "EmendasParlamentares.parquet"
     bucket_name = os.getenv("GCS_BUCKET_NAME", "")
+
+    # 1. Prioridade: Obter diretamente do Bucket GCS
     if bucket_name:
         try:
-            caminho_gcs = f"{prefixo_gcs}/EmendasParlamentares.parquet"
+            caminho_gcs = f"{prefixo_gcs}/{nome_arquivo}"
             logger.info("Tentando obter dados do Bucket GCS: 'gs://%s/%s'...", bucket_name, caminho_gcs)
             client = get_storage_client()
             bucket = client.bucket(bucket_name)
@@ -63,7 +65,7 @@ def carregar_bronze_emendas(
         logger.warning("GCS_BUCKET_NAME não configurado. Acionando fallback local...")
 
     # 2. Fallback primário: Parquet local
-    caminho_parquet_local = Path(origem_local) / "EmendasParlamentares.parquet"
+    caminho_parquet_local = Path(origem_local) / nome_arquivo
     if caminho_parquet_local.exists():
         logger.info("Fallback local: Carregando Parquet de '%s'...", caminho_parquet_local)
         return pl.read_parquet(caminho_parquet_local)
@@ -88,18 +90,20 @@ def carregar_bronze_emendas(
             return df_csv.rename(mapeamento)
 
     raise FileNotFoundError(
-        f"Não foi possível obter os dados do GCS (gs://{bucket_name}/{prefixo_gcs}/EmendasParlamentares.parquet) "
+        f"Não foi possível obter os dados do GCS (gs://{bucket_name}/{prefixo_gcs}/{nome_arquivo}) "
         f"nem dos arquivos locais (Parquet em '{caminho_parquet_local}' ou CSV em '{diretorio_csv}')."
     )
 
 
-def processar_silver_dim_emenda(
+def processar_silver_fato_emendas(
     pasta_destino: str | Path = DIRETORIO_SILVER_LOCAL,
     origem_bronze: str | Path = DIRETORIO_BRONZE_LOCAL,
 ) -> Path:
-    """Processa os dados brutos da Bronze e gera a dimensão 'dim_emenda' na camada Silver.
+    """Processa os dados brutos da Bronze e gera a tabela fato 'fato_emendas' na camada Silver.
 
-    Aplica as transformações e tipagens exatamente da forma que foi escrito no notebook.
+    Consolida as dotações orçamentárias das emendas parlamentares com seus valores autorizados,
+    empenhados, liquidados, pagos e restos a pagar, garantindo preservação integral do orçamento
+    e integridade referencial com a classificação funcional e territorial.
 
     Args:
         pasta_destino: Diretório onde o Parquet da Silver será salvo (padrão: data/silver).
@@ -109,29 +113,34 @@ def processar_silver_dim_emenda(
         Path: Caminho do arquivo Parquet gerado.
     """
     try:
-        logger.info("Iniciando processamento da camada Silver: dim_emenda...")
+        logger.info("Iniciando processamento da camada Silver: fato_emendas...")
         nome_arquivo = "EmendasParlamentares.parquet"
         df_bronze = carregar_bronze_emendas(origem_local=origem_bronze)
 
-        dim_emenda = (
-            df_bronze.filter(pl.col("codigo_da_emenda") != "Sem informação")
+        fato_emendas = (
+            df_bronze.filter(
+                pl.col("codigo_da_emenda").is_not_null() & (pl.col("codigo_da_emenda") != "Sem informação")
+            )
             .select(
                 [
                     # Identificador da emenda
-                    pl.col("codigo_da_emenda").cast(pl.Int64).alias("codigo_da_emenda"),
+                    pl.col("codigo_da_emenda").cast(pl.Int64, strict=False).alias("codigo_da_emenda"),
                     pl.col("tipo_de_emenda").str.strip_chars().alias("tipo_emenda"),
-                    pl.col("ano_da_emenda").cast(pl.Int64).alias("ano_emenda"),
-                    pl.col("numero_da_emenda").cast(pl.Int64).alias("numero_emenda"),
+                    pl.col("ano_da_emenda").cast(pl.Int64, strict=False).alias("ano_emenda"),
+                    pl.col("numero_da_emenda").cast(pl.Int64, strict=False).alias("numero_emenda"),
                     # Autor
-                    pl.col("codigo_do_autor_da_emenda").cast(pl.Int64).alias("codigo_autor"),
+                    pl.col("codigo_do_autor_da_emenda").cast(pl.Int64, strict=False).alias("codigo_autor"),
                     pl.col("nome_do_autor_da_emenda").str.strip_chars().alias("nome_autor"),
                     pl.col("possui_apoiador_solicitante").str.strip_chars().alias("possui_apoiador_solicitante"),
                     # Classificação Orçamentária
-                    pl.col("codigo_funcao").replace("MU", None).cast(pl.Int64).alias("codigo_funcao"),
+                    pl.col("codigo_funcao").replace("MU", None).cast(pl.Int64, strict=False).alias("codigo_funcao"),
                     pl.col("nome_funcao").str.strip_chars().alias("nome_funcao"),
-                    pl.col("codigo_subfuncao").replace("MU", None).cast(pl.Int64).alias("codigo_subfuncao"),
+                    pl.col("codigo_subfuncao")
+                    .replace("MU", None)
+                    .cast(pl.Int64, strict=False)
+                    .alias("codigo_subfuncao"),
                     pl.col("nome_subfuncao").str.strip_chars().alias("nome_subfuncao"),
-                    pl.col("codigo_programa").replace("MU", None).cast(pl.Int64).alias("codigo_programa"),
+                    pl.col("codigo_programa").replace("MU", None).cast(pl.Int64, strict=False).alias("codigo_programa"),
                     pl.col("nome_programa").str.strip_chars().alias("nome_programa"),
                     pl.col("codigo_acao").str.strip_chars().alias("codigo_acao"),
                     pl.col("nome_acao").str.strip_chars().alias("nome_acao"),
@@ -200,13 +209,15 @@ def processar_silver_dim_emenda(
                     .otherwise(pl.col("uf"))
                     .alias("uf"),
                     pl.col("localidade_de_aplicacao_do_recurso").str.strip_chars().alias("localidade_recurso"),
-                    pl.col("codigo_uf_ibge").cast(pl.Int64).alias("codigo_uf_ibge"),
+                    pl.col("codigo_uf_ibge").cast(pl.Int64, strict=False).alias("codigo_uf_ibge"),
                     pl.col("regiao").str.strip_chars().alias("regiao"),
                     pl.when(pl.col("uf") == "Sem informação")
                     .then(pl.lit(-1))
                     .when(pl.col("uf") == "Múltiplo")
                     .then(pl.lit(-14))
-                    .otherwise(pl.col("codigo_municipio_ibge").replace("Sem informação", -1).cast(pl.Int64))
+                    .otherwise(
+                        pl.col("codigo_municipio_ibge").replace("Sem informação", -1).cast(pl.Int64, strict=False)
+                    )
                     .alias("codigo_municipio_ibge"),
                     pl.when(
                         pl.col("municipio").replace("Sem informação", None).is_null()
@@ -222,34 +233,79 @@ def processar_silver_dim_emenda(
                     .then(pl.col("regiao").str.strip_chars())
                     .otherwise(pl.col("municipio").str.strip_chars())
                     .alias("municipio"),
+                    # Métricas Financeiras
+                    pl.col("valor_empenhado")
+                    .str.replace_all(r"\.", "")
+                    .str.replace(",", ".")
+                    .cast(pl.Float64, strict=False)
+                    .alias("valor_empenhado"),
+                    pl.col("valor_liquidado")
+                    .str.replace_all(r"\.", "")
+                    .str.replace(",", ".")
+                    .cast(pl.Float64, strict=False)
+                    .alias("valor_liquidado"),
+                    pl.col("valor_pago")
+                    .str.replace_all(r"\.", "")
+                    .str.replace(",", ".")
+                    .cast(pl.Float64, strict=False)
+                    .alias("valor_pago"),
+                    pl.col("valor_restos_a_pagar_inscritos")
+                    .str.replace_all(r"\.", "")
+                    .str.replace(",", ".")
+                    .cast(pl.Float64, strict=False)
+                    .alias("valor_restos_a_pagar_inscritos"),
+                    pl.col("valor_restos_a_pagar_cancelados")
+                    .str.replace_all(r"\.", "")
+                    .str.replace(",", ".")
+                    .cast(pl.Float64, strict=False)
+                    .alias("valor_restos_a_pagar_cancelados"),
+                    pl.col("valor_restos_a_pagar_pagos")
+                    .str.replace_all(r"\.", "")
+                    .str.replace(",", ".")
+                    .cast(pl.Float64, strict=False)
+                    .alias("valor_restos_a_pagar_pagos"),
+                    # Metadados de Auditoria
                     pl.lit(datetime.now(timezone.utc)).alias("dt_atualizacao"),
                     pl.lit(nome_arquivo).alias("_source_file"),
                 ]
             )
-            .unique(subset=["codigo_da_emenda"])
-        ).sort(by="ano_emenda", descending=True)
+            .unique(
+                subset=[
+                    "codigo_da_emenda",
+                    "codigo_funcao",
+                    "codigo_subfuncao",
+                    "codigo_acao",
+                    "codigo_plano_orcamentario",
+                ]
+            )
+            .sort(by=["ano_emenda", "codigo_da_emenda"], descending=[True, False])
+        )
 
         caminho_destino = Path(pasta_destino)
         caminho_destino.mkdir(parents=True, exist_ok=True)
-        arquivo_saida = caminho_destino / "dim_emenda.parquet"
+        arquivo_saida = caminho_destino / "fato_emendas.parquet"
 
-        dim_emenda.write_parquet(arquivo_saida, compression="snappy")
+        fato_emendas.write_parquet(arquivo_saida, compression="snappy")
         tamanho_mb = arquivo_saida.stat().st_size / (1024 * 1024)
 
         logger.info(
             "Processamento da Silver concluído com sucesso: '%s' | %d linhas | %d colunas | %.2f MB.",
             arquivo_saida.name,
-            dim_emenda.shape[0],
-            dim_emenda.shape[1],
+            fato_emendas.shape[0],
+            fato_emendas.shape[1],
             tamanho_mb,
         )
 
         return arquivo_saida
 
     except Exception:
-        logger.exception("Erro durante o processamento da camada Silver para dim_emenda.")
+        logger.exception("Erro durante o processamento da camada Silver para fato_emendas.")
         raise
 
 
+# Alias para retrocompatibilidade
+processar_silver_dim_emenda = processar_silver_fato_emendas
+
+
 if __name__ == "__main__":
-    processar_silver_dim_emenda()
+    processar_silver_fato_emendas()

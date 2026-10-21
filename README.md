@@ -15,7 +15,7 @@ Construir um pipeline ETL/ELT robusto e resiliente seguindo o padrão **Medallio
 1. **Raw (0_raw)**: Ingestão de dados brutos tabulares em formato CSV (`ISO-8859-1` / `UTF-8`).
 2. **Bronze (1_bronze)**: Conversão para formato colunar Parquet em memória, sanitização de cabeçalhos (`snake_case`), injeção de metadados de auditoria (`_ingestion_timestamp` e `_source_file`) e arquivamento seguro no **Google Cloud Storage (GCS)**.
 3. **Silver (2_silver)**: Modelagem dimensional analítica em padrão **Star Schema**, garantindo integridade referencial, tratamento de sentinelas, engenharia de atributos geográficos e temporais, e carga direta em **tabelas nativas gerenciadas no BigQuery**:
-   - `dim_emenda`: Dimensão de emendas com autor, ano, classificação orçamentária (função/subfunção/programa/ação) e UF/município.
+   - `fato_emendas`: Fato orçamentária consolidando dotações das emendas com 6 métricas monetárias (empenhado, liquidado, pago, restos a pagar inscritos/cancelados/pagos), autor, ano, classificação funcional e localização.
    - `fato_convenios`: Fato analítica tratando a relação $N:N$ entre emendas e instrumentos contratuais com valores alocados.
    - `fato_favorecidos`: Fato periódica mensal acumulada de transferências e pagamentos diretos por favorecido (CNPJ/CPF/Órgão).
 4. **Gold (3_gold)**: Construção de data marts agregados com métricas orçamentárias (valores empenhados, liquidados e pagos por parlamentar e localidade) para consumo em BI e inteligência analítica.
@@ -45,16 +45,16 @@ flowchart LR
     end
 
     subgraph DWH ["2_silver (BigQuery Managed Tables)"]
-        S_DIM["dim_emenda (PK: codigo_da_emenda)"]
-        S_CONV["fato_convenios (FK: codigo_da_emenda)"]
-        S_FAV["fato_favorecidos (FK: codigo_da_emenda)"]
+        S_EMENDA["fato_emendas (Orçamento Macro)"]
+        S_CONV["fato_convenios (Instrumentos N:N)"]
+        S_FAV["fato_favorecidos (Execução Favorecidos)"]
     end
 
     CSV_E --> B_E
     CSV_C --> B_C
     CSV_F --> B_F
 
-    B_E --> Proc_E --> S_DIM
+    B_E --> Proc_E --> S_EMENDA
     B_C --> Proc_C --> S_CONV
     B_F --> Proc_F --> S_FAV
 ```
@@ -86,7 +86,7 @@ projeto_emendas/
 ├── database_sample/                   # Amostras reduzidas para execução de testes em CI
 ├── data/
 │   ├── bronze/                        # Parquets intermediários gerados da camada Bronze
-│   └── silver/                        # Parquets gerados da Silver (dim_emenda, fato_convenios, fato_favorecidos)
+│   └── silver/                        # Parquets gerados da Silver (fato_emendas, fato_convenios, fato_favorecidos)
 ├── notebooks/
 │   └── projeto_inicial.ipynb          # Explorações interativas e prototipação de regras
 ├── src/
@@ -103,7 +103,7 @@ projeto_emendas/
 │       └── processamento/
 │           ├── csv_parquet.py         # Conversão de CSV para Parquet com injeção de auditoria
 │           ├── normalizar.py          # Normalização de nomes de colunas (snake_case)
-│           ├── silver_emendas.py      # Transformação, limpeza e enriquecimento de dim_emenda
+│           ├── silver_emendas.py      # Modelagem da fato_emendas com métricas orçamentárias
 │           ├── silver_convenios.py    # Modelagem N:N da fato_convenios com tipagem monetária
 │           └── silver_favorecidos.py  # Modelagem periódica da fato_favorecidos com datas mensais
 └── tests/
@@ -111,7 +111,7 @@ projeto_emendas/
     ├── test_csv_parquet.py            # Testes de conversão CSV -> Parquet
     ├── test_normalizar.py             # Testes de sanitização de strings e colunas
     ├── test_pipeline.py               # Testes de orquestração do pipeline
-    ├── test_silver_emendas.py         # Testes de regras de negócio e fallback de dim_emenda
+    ├── test_silver_emendas.py         # Testes de regras de negócio, métricas e fallback de fato_emendas
     ├── test_silver_convenios.py       # Testes de regras N:N e tipagens de fato_convenios
     ├── test_silver_favorecidos.py     # Testes de regras temporais e métricas de fato_favorecidos
     ├── test_upload_bronze.py          # Testes de envio para o Cloud Storage
@@ -180,7 +180,7 @@ GOOGLE_APPLICATION_CREDENTIALS="gcp-credentials.json"
     ```bash
     uv run python src/etl_emendas_parlamentares/ingestao/upload_bronze.py
     ```
-  - *Processar dimensão de emendas (`dim_emenda`)*:
+  - *Processar fato de emendas orçamentárias (`fato_emendas`)*:
     ```bash
     uv run python src/etl_emendas_parlamentares/processamento/silver_emendas.py
     ```
@@ -204,7 +204,7 @@ GOOGLE_APPLICATION_CREDENTIALS="gcp-credentials.json"
 O projeto segue um plano de evolução estruturado para expandir a maturidade analítica e incorporar capacidades avançadas de Inteligência Artificial:
 
 - [x] **Camada Bronze (1_bronze):** Ingestão, auditoria e arquivamento colunar Parquet no Google Cloud Storage (GCS).
-- [x] **Camada Silver (2_silver):** Modelagem dimensional Star Schema completa (`dim_emenda`, `fato_convenios` e `fato_favorecidos`) com carga direta em tabelas nativas gerenciadas no BigQuery.
+- [x] **Camada Silver (2_silver):** Modelagem dimensional Star Schema completa (`fato_emendas`, `fato_convenios` e `fato_favorecidos`) com carga direta em tabelas nativas gerenciadas no BigQuery.
 - [ ] **Camada Gold (3_gold):** Construção de data marts agregados com métricas orçamentárias (valores empenhados, liquidados, pagos e restos a pagar por município/função).
 - [ ] **Camada de Consumo Inteligente (Google Cloud Vertex AI):**
   - **Agentes de IA & Text-to-SQL (Gemini no Vertex AI):** Interface conversacional em linguagem natural para permitir consultas intuitivas aos dados de emendas, convênios e execuções orçamentárias sem necessidade de queries SQL manuais.
