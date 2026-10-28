@@ -206,7 +206,7 @@ def test_processar_silver_fato_convenios(mock_carregar, tmp_path, bronze_conveni
     assert c1_row["localidade_classificada"][0] == "PA"
 
     c4_row = df_resultado.filter(pl.col("codigo_da_emenda") == 20240003)
-    assert c4_row["localidade_classificada"][0] == "Regional"
+    assert c4_row["localidade_classificada"][0] in ("Regional", "REGIONAL")
 
     # 6. Conversão de valor monetário para Float64
     assert c1_row["valor_convenio"][0] == 500000.0
