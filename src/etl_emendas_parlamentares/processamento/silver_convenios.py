@@ -134,15 +134,15 @@ def processar_silver_fato_convenios(
                     pl.col("nome_subfuncao").str.strip_chars().alias("nome_subfuncao"),
                     pl.col("localidade_do_gasto").str.strip_chars().alias("localidade_do_gasto"),
                     pl.when(pl.col("localidade_do_gasto").str.strip_chars().str.ends_with("Nacional"))
-                    .then(pl.lit("Nacional"))
+                    .then(pl.lit("NACIONAL"))
                     .when(pl.col("localidade_do_gasto").str.strip_chars().str.ends_with("(UF)"))
-                    .then(pl.lit("Estadual"))
+                    .then(pl.lit("ESTADUAL"))
                     .when(
                         pl.col("localidade_do_gasto")
                         .str.strip_chars()
                         .str.contains(r"(Norte|Sul|Centro-Oeste|Nordeste|Sudeste)$")
                     )
-                    .then(pl.lit("Regional"))
+                    .then(pl.lit("REGIONAL"))
                     .otherwise(pl.col("localidade_do_gasto").str.strip_chars().str.slice(-2))
                     .alias("localidade_classificada"),
                     pl.col("tipo_de_emenda").str.strip_chars().alias("tipo_de_emenda"),
