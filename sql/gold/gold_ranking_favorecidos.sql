@@ -70,3 +70,4 @@ SELECT
     CURRENT_TIMESTAMP() AS DH_PROCESSAMENTO
 
 FROM agregacao_favorecido_ano;
+

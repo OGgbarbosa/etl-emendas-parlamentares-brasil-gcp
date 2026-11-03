@@ -36,3 +36,4 @@ SELECT
 
 FROM convenios_unicos
 GROUP BY 1, 2, 3, 4;
+
