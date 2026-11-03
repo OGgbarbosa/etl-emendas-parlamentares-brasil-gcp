@@ -7,7 +7,7 @@
 
 Pipeline de Engenharia de Dados para extração, tratamento e carga analítica dos dados abertos de **Emendas Parlamentares do Brasil**, utilizando a plataforma **Google Cloud Platform (GCP)** com processamento colunar em memória via **Polars**.
 
-> **Status atual:** camadas **Raw, Bronze e Silver (fatos)** implementadas e executando de ponta a ponta em ~2 minutos. **Gold, scraping, RAG com Gemini e dashboards Streamlit estão em desenvolvimento** (veja o [Roadmap](#️-roadmap-de-evolução) e a tabela de [Decisões de Projeto](#-decisões-de-projeto-e-status)).
+> **Status atual:** camadas **Raw, Bronze e Silver (fatos)** implementadas e executando de ponta a ponta em ~2 minutos. **Gold com os 5 Data Marts modelados em SQL**; scraping, RAG com Gemini e dashboards Streamlit estão em desenvolvimento (veja o [Roadmap](#️-roadmap-de-evolução) e a tabela de [Decisões de Projeto](#-decisões-de-projeto-e-status)).
 
 ---
 
@@ -108,11 +108,11 @@ flowchart TD
 | Qualidade | Linhas com código "Sem informação" são expurgadas das fatos (ver reconciliação auditada abaixo). Preservação com sentinela/quarentena planejada. | Implementado (Fatos) / Sentinela planejado |
 | Sentinelas | Valores especiais já mapeados; regra de tratamento ainda em estudo. | Em estudo |
 | Modelagem | Fatos tratadas e validadas previamente; dimensões (autor, localidade, função) serão criadas se o consumo exigir. | Planejado |
-| Convênios (N:N) | Grão da fato_convenios definido como 1 linha por [convênio × emenda]. Na Gold, deduplicação com QUALIFY será usada apenas quando a métrica exigir valor físico único por convênio. | Modelado na Silver |
+| Convênios (N:N) | Grão da fato_convenios definido como 1 linha por [convênio × emenda]. Na Gold, deduplicação prévia do instrumento (grão único por convênio) previne sobreposição financeira. | Modelado na Silver e Gold |
 | Favorecidos | Granularidade mensal, pois o valor empenhado pode ser pago ao longo de vários meses. | Implementado |
 | Carga | Hoje sobrescreve as tabelas (dados fixos, execução rápida). Com os dados semestrais, a ideia é migrar para MERGE incremental, após verificar se os arquivos antigos mudam a cada semestre. | Planejado |
 | Testes | 35 testes com mocks de GCS e BigQuery cobrindo o fluxo; testes de regra de negócio virão com as agregações da Gold. | Parcial |
-| Gold | Cada Data Mart responde a uma pergunta de negócio (empenhado, pago, UF, parlamentar). | Em andamento |
+| Gold | 5 Data Marts modelados em SQL cobrindo execução parlamentar, geografia, políticas públicas, favorecidos e convênios. | 5 Data Marts Modelados |
 | RAG híbrido | Dados oficiais do BigQuery como base, com artigos e notícias como contexto complementar. Custo de BigQuery e Vertex AI ainda não estimado. | Planejado |
 | GCP vs. Databricks | O projeto nasceu no Databricks (versão gratuita) e foi refeito no GCP para medir custo e esforço reais, e para testar execução híbrida: pipeline local, empacotável em Docker, com custo só de armazenamento e Vertex. | Decisão tomada |
 
@@ -255,7 +255,7 @@ GOOGLE_APPLICATION_CREDENTIALS="gcp-credentials.json"
 
 ### 2. Execução dos Testes e Validação de Código
 
-- Rodar suíte completa de testes unitários (35 testes):
+- Rodar suíte completa de testes unitários (48 testes):
   ```bash
   uv run pytest
   ```
@@ -270,7 +270,7 @@ GOOGLE_APPLICATION_CREDENTIALS="gcp-credentials.json"
 
 ### 3. Execução do Pipeline
 
-- **Executar Pipeline Completo (Raw -> Bronze -> Silver)**:
+- **Executar Pipeline Completo (Raw -> Bronze -> Silver -> Gold)**:
   ```bash
   uv run python src/etl_emendas_parlamentares/pipeline.py
   ```
@@ -307,19 +307,20 @@ GOOGLE_APPLICATION_CREDENTIALS="gcp-credentials.json"
 
 - [x] **Camada Bronze (1_bronze):** Ingestão, auditoria e arquivamento colunar Parquet no Google Cloud Storage (GCS).
 - [x] **Camada Silver (2_silver) - fatos:** `fato_emendas`, `fato_convenios` e `fato_favorecidos` carregadas como tabelas nativas no BigQuery.
-  - [ ] **Preservação de Registros Sem Código (RP9/2014):** Migrar do expurgo rígido para atribuição de sentinela (`codigo_da_emenda = -1`, `codigo_emenda_informado = false`) ou tabela de quarentena, evitando a subestimação de R$ 35,6 Bi em empenhos.
-  - [ ] **Automatização da Reconciliação:** Geração automática de logs e métricas de reconciliação de linhas e valores entre camadas a cada execução do pipeline.
+  - [x] **Preservação de Registros Sem Código (RP9/2014):** Atribuição de sentinela (`codigo_da_emenda = -1`, `codigo_emenda_informado = false`) na Silver, recuperando 100% dos empenhos (R$ 35,6 Bi) e dados históricos.
+  - [x] **Automatização da Reconciliação:** Geração automática de logs e métricas de reconciliação de linhas e valores entre camadas a cada execução do pipeline (`reconciliacao.py`).
   - [ ] Tratamento de sentinelas adicionais (valores já mapeados, regra em estudo).
   - [ ] Dimensões (autor, localidade, função), conforme necessidade de consumo analítico.
   - [ ] Carga incremental com MERGE (definir chave natural e fallback na virada de semestre).
 - [ ] **Camada Gold (3_gold - Em Andamento):**
   - [x] Definição arquitetural dos Data Marts via SQL padronizado no BigQuery.
-  - [ ] Implementação e validação dos scripts analíticos em `sql/gold/`:
-    - `gold_execucao_parlamentar.sql` (visão parlamentar e taxas de execução)
-    - `gold_distribuicao_geografica.sql` (visão territorial por UF e municípios)
-    - `gold_politicas_publicas.sql` (visão setorial por função e subfunção)
-    - `gold_ranking_favorecidos.sql` (maiores fornecedores, ONGs e entidades)
-    - `gold_painel_convenios.sql` (descentralização e instrumentos federais)
+  - [x] Implementação e validação dos 5 scripts analíticos em `sql/gold/`:
+    - [x] `gold_execucao_parlamentar.sql` (visão parlamentar, saldos de RAP e taxas de execução)
+    - [x] `gold_distribuicao_geografica.sql` (visão territorial consolidada, isolamento N:N e âmbito federativo)
+    - [x] `gold_politicas_publicas.sql` (visão setorial por função/subfunção, share orçamentário e YoY)
+    - [x] `gold_ranking_favorecidos.sql` (maiores fornecedores, ONGs, histórico acumulado e marcos temporais)
+    - [x] `gold_painel_convenios.sql` (descentralização e instrumentos federais com valor deduplicado)
+  - [x] **Módulo Runner de Execução da Gold:** Script Python (`upload_gold.py`) para orquestrar e materializar automaticamente as tabelas Gold no BigQuery integrado ao `pipeline.py`.
   - [ ] Testes de regra de negócio sobre as agregações monetárias.
   - [ ] Camada de Views Semânticas de Consumo com metadados para IA (`view_ai_*`).
 - [ ] **Camada de Web Scraping & Contexto Não-Estruturado:**
