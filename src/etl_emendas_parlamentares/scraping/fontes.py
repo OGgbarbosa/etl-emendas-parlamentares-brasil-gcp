@@ -25,4 +25,3 @@ visões complementares sobre emendas parlamentares.
 
 # 6. Transparência Brasil - Controle social, auditorias cívicas e investigações independentes
 # https://www.transparencia.org.br/noticias/
-

@@ -13,6 +13,10 @@ from etl_emendas_parlamentares.config.config import (
     DIRETORIO_SILVER_LOCAL,
 )
 from etl_emendas_parlamentares.processamento.normalizar import normalizar_colunas
+from etl_emendas_parlamentares.processamento.reconciliacao import (
+    calcular_reconciliacao,
+    logar_relatorio_reconciliacao,
+)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
@@ -117,13 +121,20 @@ def processar_silver_fato_convenios(
         nome_arquivo = "EmendasParlamentares_Convenios.parquet"
         df_bronze = carregar_bronze_convenios(origem_local=origem_bronze)
 
+        cond_emenda_valida = (
+            pl.col("codigo_da_emenda").is_not_null()
+            & (pl.col("codigo_da_emenda").str.strip_chars() != "Sem informação")
+            & (pl.col("codigo_da_emenda").str.strip_chars() != "")
+        )
+
         fato_convenios = (
-            df_bronze.filter(
-                pl.col("codigo_da_emenda").is_not_null() & (pl.col("codigo_da_emenda") != "Sem informação")
-            )
-            .select(
+            df_bronze.select(
                 [
-                    pl.col("codigo_da_emenda").cast(pl.Int64, strict=False).alias("codigo_da_emenda"),
+                    pl.when(cond_emenda_valida)
+                    .then(pl.col("codigo_da_emenda").cast(pl.Int64, strict=False))
+                    .otherwise(pl.lit(-1))
+                    .alias("codigo_da_emenda"),
+                    cond_emenda_valida.alias("codigo_emenda_informado"),
                     pl.col("codigo_funcao").cast(pl.Int64, strict=False).alias("codigo_funcao"),
                     pl.col("codigo_subfuncao").cast(pl.Int64, strict=False).alias("codigo_subfuncao"),
                     pl.col("numero_convenio").str.strip_chars().alias("numero_convenio"),
@@ -175,6 +186,16 @@ def processar_silver_fato_convenios(
             fato_convenios.shape[1],
             tamanho_mb,
         )
+
+        metricas = calcular_reconciliacao(
+            df_bronze=df_bronze,
+            df_silver=fato_convenios,
+            entidade="fato_convenios",
+            col_valor_bronze="valor_convenio",
+            col_valor_silver="valor_convenio",
+            nome_metrica="Valor Conveniado",
+        )
+        logar_relatorio_reconciliacao([metricas])
 
         return arquivo_saida
 

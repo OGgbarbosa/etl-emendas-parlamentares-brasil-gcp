@@ -18,8 +18,8 @@ def bronze_convenios_sample_df():
                 "20240001",
                 "20240002",  # Mesmo convênio C1 com outra emenda (N:N)
                 "20240001",  # Linha duplicada exata para o par (C1, 20240001)
-                "Sem informação",  # Deve ser expurgado
-                None,  # Deve ser expurgado
+                "Sem informação",  # Preservado com sentinela -1
+                None,  # Preservado com sentinela -1
                 "20240003",
             ],
             "numero_convenio": [
@@ -59,20 +59,20 @@ def bronze_convenios_sample_df():
                 "20/06/2024",
             ],
             "convenente": [
-                "MUNICIPIO DE XINGUARA",
-                "MUNICIPIO DE XINGUARA",
-                "MUNICIPIO DE XINGUARA",
-                "ORGAO NACIONAL",
-                "GOVERNO DO ACRE",
-                "SECRETARIA NORDESTE",
+                "Prefeitura Municipal",
+                "Prefeitura Municipal",
+                "Prefeitura Municipal",
+                "Estado do Pará",
+                "Associação Cívica",
+                "Polícia Militar",
             ],
             "objeto_convenio": [
-                "Reforma de posto de saúde",
-                "Reforma de posto de saúde",
-                "Reforma de posto de saúde",
-                "Objeto nacional",
-                "Objeto estadual",
-                "Objeto regional",
+                "Reforma de UBS",
+                "Reforma de UBS",
+                "Reforma de UBS",
+                "Pavimentação Asfáltica",
+                "Aquisição de Livros",
+                "Equipamentos de Segurança",
             ],
             "valor_convenio": [
                 "500000,00",
@@ -80,7 +80,7 @@ def bronze_convenios_sample_df():
                 "500000,00",
                 "1000000,00",
                 "250000,00",
-                "1.200.000,00",
+                "1200000,00",
             ],
         }
     )
@@ -174,27 +174,32 @@ def test_processar_silver_fato_convenios(mock_carregar, tmp_path, bronze_conveni
 
     df_resultado = pl.read_parquet(arquivo_gerado)
 
-    # 1. Filtro: expurga 'Sem informação' e nulos em codigo_da_emenda
+    # 1. Preservação com sentinela: 'Sem informação' e nulos viram -1
     assert "Sem informação" not in df_resultado["codigo_da_emenda"].to_list()
     assert df_resultado["codigo_da_emenda"].null_count() == 0
+    assert -1 in df_resultado["codigo_da_emenda"].to_list()
 
     # 2. Deduplicação N:N:
     # C1 com 20240001 e C1 com 20240002 são AMBAS preservadas!
     # A duplicata exata de (C1, 20240001) é removida.
-    # Total de linhas sobreviventes: (C1, 20240001), (C1, 20240002), (C4, 20240003) = 3 linhas
-    assert df_resultado.shape[0] == 3
+    # C2 e C3 (sem código) são preservados com -1.
+    # C4 é preservado com 20240003.
+    # Total de linhas sobreviventes: (C1, 20240001), (C1, 20240002), (C2, -1), (C3, -1), (C4, 20240003) = 5 linhas
+    assert df_resultado.shape[0] == 5
     c1_rows = df_resultado.filter(pl.col("numero_convenio") == "C1")
     assert c1_rows.shape[0] == 2
     assert set(c1_rows["codigo_da_emenda"].to_list()) == {20240001, 20240002}
 
-    # 3. 15 colunas esperadas
-    assert df_resultado.shape[1] == 15
+    # 3. 16 colunas esperadas (incluindo codigo_emenda_informado)
+    assert df_resultado.shape[1] == 16
+    assert "codigo_emenda_informado" in df_resultado.columns
     assert "localidade_classificada" in df_resultado.columns
     assert "dt_atualizacao" in df_resultado.columns
     assert "_source_file" in df_resultado.columns
 
     # 4. Tipagem
     assert df_resultado.schema["codigo_da_emenda"] == pl.Int64
+    assert df_resultado.schema["codigo_emenda_informado"] == pl.Boolean
     assert df_resultado.schema["codigo_funcao"] == pl.Int64
     assert df_resultado.schema["codigo_subfuncao"] == pl.Int64
     assert df_resultado.schema["numero_convenio"] == pl.String

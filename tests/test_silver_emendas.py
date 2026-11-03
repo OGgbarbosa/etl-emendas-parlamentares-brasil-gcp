@@ -17,7 +17,7 @@ def bronze_sample_df():
             "codigo_da_emenda": [
                 "20240001",
                 "20240001",  # Mesma emenda com outra ação (dotação distinta)
-                "Sem informação",  # Deve ser expurgado
+                "Sem informação",  # Preservado com sentinela -1
                 "20240002",
                 "20240003",
             ],
@@ -143,16 +143,23 @@ def test_processar_silver_fato_emendas(mock_carregar, tmp_path, bronze_sample_df
 
     df_resultado = pl.read_parquet(arquivo_gerado)
 
-    # 1. Filtra 'Sem informação'
+    # 1. Preservação com sentinela: 'Sem informação' converte para -1
     assert "Sem informação" not in df_resultado["codigo_da_emenda"].to_list()
+    assert -1 in df_resultado["codigo_da_emenda"].to_list()
 
-    # 2. Preserva dotações distintas da mesma emenda (4 linhas válidas no total)
-    assert df_resultado.shape[0] == 4
+    # 2. Preserva 100% das linhas válidas e sem código (todas as 5 dotações)
+    assert df_resultado.shape[0] == 5
     linhas_20240001 = df_resultado.filter(pl.col("codigo_da_emenda") == 20240001)
     assert len(linhas_20240001) == 2
 
-    # 3. 32 colunas (24 de negócio + 6 métricas financeiras + 2 de auditoria)
-    assert df_resultado.shape[1] == 32
+    # 3. Coluna indicadora de integridade
+    assert "codigo_emenda_informado" in df_resultado.columns
+    assert df_resultado.schema["codigo_emenda_informado"] == pl.Boolean
+    linha_sentinela = df_resultado.filter(pl.col("codigo_da_emenda") == -1)
+    assert linha_sentinela["codigo_emenda_informado"][0] is False
+
+    # 4. 33 colunas (25 de negócio + 6 métricas financeiras + 2 de auditoria)
+    assert df_resultado.shape[1] == 33
     assert "codigo_municipio_ibge" in df_resultado.columns
     assert "municipio" in df_resultado.columns
     assert "valor_empenhado" in df_resultado.columns
@@ -160,7 +167,7 @@ def test_processar_silver_fato_emendas(mock_carregar, tmp_path, bronze_sample_df
     assert "dt_atualizacao" in df_resultado.columns
     assert "_source_file" in df_resultado.columns
 
-    # 4. Tipagem
+    # 5. Tipagem
     assert df_resultado.schema["codigo_da_emenda"] == pl.Int64
     assert df_resultado.schema["ano_emenda"] == pl.Int64
     assert df_resultado.schema["numero_emenda"] == pl.Int64
@@ -170,13 +177,13 @@ def test_processar_silver_fato_emendas(mock_carregar, tmp_path, bronze_sample_df
     assert df_resultado.schema["valor_empenhado"] == pl.Float64
     assert df_resultado.schema["valor_pago"] == pl.Float64
 
-    # 5. Tratamento de 'MU' como null
+    # 6. Tratamento de 'MU' como null
     emenda_20240002 = df_resultado.filter(pl.col("codigo_da_emenda") == 20240002)
     assert emenda_20240002["codigo_funcao"][0] is None
     assert emenda_20240002["codigo_subfuncao"][0] is None
     assert emenda_20240002["codigo_programa"][0] is None
 
-    # 6. Mapeamento de UFs e Estado
+    # 7. Mapeamento de UFs e Estado
     emenda_20240001_row = df_resultado.filter(pl.col("codigo_da_emenda") == 20240001)
     assert emenda_20240001_row["Estado"][0] == "SÃO PAULO"
     assert emenda_20240001_row["uf"][0] == "SP"
@@ -187,6 +194,6 @@ def test_processar_silver_fato_emendas(mock_carregar, tmp_path, bronze_sample_df
     assert emenda_20240003["uf"][0] == "NACI"
     assert emenda_20240003["codigo_municipio_ibge"][0] == -1
 
-    # 7. Valores monetários convertidos
+    # 8. Valores monetários convertidos
     assert emenda_20240002["valor_empenhado"][0] == 300000.50
     assert emenda_20240003["valor_pago"][0] == 300000.00

@@ -2,13 +2,14 @@ CREATE OR REPLACE TABLE `project-f2711ebc-82b0-49cb-b84.3_gold.tbl_distribuicao_
 CLUSTER BY DT_ANO, SG_REGIAO, SG_UF, CD_MUNICIPIO_IBGE
 AS
 
--- 1. Totalizar os convênios por código de emenda (grão 1:1 por emenda para prevenir fan-out)
+-- 1. Totalizar os convênios por código de emenda (grão 1:1 por emenda para prevenir fan-out; exclui sentinela -1)
 WITH convenios_por_emenda AS (
     SELECT 
         codigo_da_emenda,
         COUNT(DISTINCT numero_convenio) AS qtd_convenios,
         SUM(valor_convenio) AS total_valor_convenio
     FROM `project-f2711ebc-82b0-49cb-b84.2_silver.fato_convenios`
+    WHERE codigo_da_emenda != -1
     GROUP BY codigo_da_emenda
 ),
 
@@ -43,7 +44,9 @@ emendas_com_convenios AS (
         COALESCE(c.qtd_convenios, 0) AS qtd_convenios,
         COALESCE(c.total_valor_convenio, 0.0) AS vl_convenio
     FROM emendas_territorio e
-    LEFT JOIN convenios_por_emenda c ON e.codigo_da_emenda = c.codigo_da_emenda
+    LEFT JOIN convenios_por_emenda c 
+        ON e.codigo_da_emenda = c.codigo_da_emenda 
+        AND e.codigo_da_emenda != -1
 )
 
 -- 4. Agrupamento final no grão geográfico [Ano, Região, UF, Município, Âmbito]

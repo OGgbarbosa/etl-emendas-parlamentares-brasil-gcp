@@ -13,6 +13,10 @@ from etl_emendas_parlamentares.config.config import (
     DIRETORIO_SILVER_LOCAL,
 )
 from etl_emendas_parlamentares.processamento.normalizar import normalizar_colunas
+from etl_emendas_parlamentares.processamento.reconciliacao import (
+    calcular_reconciliacao,
+    logar_relatorio_reconciliacao,
+)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
@@ -117,14 +121,21 @@ def processar_silver_fato_emendas(
         nome_arquivo = "EmendasParlamentares.parquet"
         df_bronze = carregar_bronze_emendas(origem_local=origem_bronze)
 
+        cond_emenda_valida = (
+            pl.col("codigo_da_emenda").is_not_null()
+            & (pl.col("codigo_da_emenda").str.strip_chars() != "Sem informação")
+            & (pl.col("codigo_da_emenda").str.strip_chars() != "")
+        )
+
         fato_emendas = (
-            df_bronze.filter(
-                pl.col("codigo_da_emenda").is_not_null() & (pl.col("codigo_da_emenda") != "Sem informação")
-            )
-            .select(
+            df_bronze.select(
                 [
-                    # Identificador da emenda
-                    pl.col("codigo_da_emenda").cast(pl.Int64, strict=False).alias("codigo_da_emenda"),
+                    # Identificador da emenda com sentinela para dados sem código (RP9, 2014, RP8)
+                    pl.when(cond_emenda_valida)
+                    .then(pl.col("codigo_da_emenda").cast(pl.Int64, strict=False))
+                    .otherwise(pl.lit(-1))
+                    .alias("codigo_da_emenda"),
+                    cond_emenda_valida.alias("codigo_emenda_informado"),
                     pl.col("tipo_de_emenda").str.strip_chars().alias("tipo_emenda"),
                     pl.col("ano_da_emenda").cast(pl.Int64, strict=False).alias("ano_emenda"),
                     pl.col("numero_da_emenda").cast(pl.Int64, strict=False).alias("numero_emenda"),
@@ -271,11 +282,18 @@ def processar_silver_fato_emendas(
             )
             .unique(
                 subset=[
+                    "ano_emenda",
+                    "tipo_emenda",
+                    "codigo_autor",
+                    "numero_emenda",
                     "codigo_da_emenda",
                     "codigo_funcao",
                     "codigo_subfuncao",
                     "codigo_acao",
                     "codigo_plano_orcamentario",
+                    "localidade_recurso",
+                    "codigo_municipio_ibge",
+                    "valor_empenhado",
                 ]
             )
             .sort(by=["ano_emenda", "codigo_da_emenda"], descending=[True, False])
@@ -295,6 +313,16 @@ def processar_silver_fato_emendas(
             fato_emendas.shape[1],
             tamanho_mb,
         )
+
+        metricas = calcular_reconciliacao(
+            df_bronze=df_bronze,
+            df_silver=fato_emendas,
+            entidade="fato_emendas",
+            col_valor_bronze="valor_empenhado",
+            col_valor_silver="valor_empenhado",
+            nome_metrica="Valor Empenhado",
+        )
+        logar_relatorio_reconciliacao([metricas])
 
         return arquivo_saida
 
