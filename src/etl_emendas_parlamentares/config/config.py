@@ -27,3 +27,7 @@ DIRETORIO_BRONZE_LOCAL = os.getenv("DIRETORIO_BRONZE_LOCAL", "data/bronze")
 SILVER_PREFIX = "2_silver"
 SILVER_DATASET = os.getenv("SILVER_DATASET", "2_silver")
 DIRETORIO_SILVER_LOCAL = os.getenv("DIRETORIO_SILVER_LOCAL", "data/silver")
+
+GOLD_PREFIX = "3_gold"
+GOLD_DATASET = os.getenv("GOLD_DATASET", "3_gold")
+DIRETORIO_GOLD_SQL = os.getenv("DIRETORIO_GOLD_SQL", "sql/gold")

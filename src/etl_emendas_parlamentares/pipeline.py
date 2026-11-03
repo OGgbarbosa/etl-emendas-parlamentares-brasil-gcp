@@ -1,4 +1,5 @@
 from etl_emendas_parlamentares.ingestao.upload_bronze import upload_bronze
+from etl_emendas_parlamentares.ingestao.upload_gold import upload_gold
 from etl_emendas_parlamentares.ingestao.upload_silver import upload_silver
 from etl_emendas_parlamentares.processamento.csv_parquet import processar_csv_para_parquet
 from etl_emendas_parlamentares.processamento.silver_convenios import processar_silver_fato_convenios
@@ -21,11 +22,16 @@ def run_silver() -> None:
     upload_silver()
 
 
+def run_gold() -> None:
+    upload_gold()
+
+
 def pipeline() -> None:
-    """Executa o pipeline completo de ponta a ponta."""
+    """Executa o pipeline completo de ponta a ponta (Raw ➔ Bronze ➔ Silver ➔ Gold)."""
     run_raw()
     run_bronze()
     run_silver()
+    run_gold()
 
 
 if __name__ == "__main__":

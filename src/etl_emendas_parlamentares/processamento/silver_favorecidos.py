@@ -13,6 +13,10 @@ from etl_emendas_parlamentares.config.config import (
     DIRETORIO_SILVER_LOCAL,
 )
 from etl_emendas_parlamentares.processamento.normalizar import normalizar_colunas
+from etl_emendas_parlamentares.processamento.reconciliacao import (
+    calcular_reconciliacao,
+    logar_relatorio_reconciliacao,
+)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
@@ -117,35 +121,39 @@ def processar_silver_fato_favorecidos(
         nome_arquivo = "EmendasParlamentares_PorFavorecido.parquet"
         df_bronze = carregar_bronze_favorecidos(origem_local=origem_bronze)
 
-        fato_favorecidos = (
-            df_bronze.filter(
-                pl.col("codigo_da_emenda").is_not_null() & (pl.col("codigo_da_emenda") != "Sem informação")
-            )
-            .select(
-                [
-                    pl.col("codigo_da_emenda").cast(pl.Int64, strict=False).alias("codigo_da_emenda"),
-                    pl.col("codigo_do_autor_da_emenda").cast(pl.Int64, strict=False).alias("codigo_do_autor_da_emenda"),
-                    pl.col("codigo_do_favorecido").str.strip_chars().alias("codigo_do_favorecido"),
-                    pl.col("numero_da_emenda").cast(pl.Int64, strict=False).alias("numero_da_emenda"),
-                    pl.col("ano_mes").str.to_date("%Y%m").alias("data_referencia"),
-                    pl.col("nome_do_autor_da_emenda").str.strip_chars().alias("nome_do_autor_da_emenda"),
-                    pl.col("tipo_de_emenda").str.strip_chars().alias("tipo_de_emenda"),
-                    pl.col("favorecido").str.strip_chars().alias("favorecido"),
-                    pl.col("natureza_juridica").str.strip_chars().alias("natureza_juridica"),
-                    pl.col("tipo_favorecido").str.strip_chars().alias("tipo_favorecido"),
-                    pl.col("uf_favorecido").str.strip_chars().alias("uf_favorecido"),
-                    pl.col("municipio_favorecido").str.strip_chars().alias("municipio_favorecido"),
-                    pl.col("valor_recebido")
-                    .str.replace_all(r"\.", "")
-                    .str.replace(",", ".")
-                    .cast(pl.Float64, strict=False)
-                    .alias("valor_recebido"),
-                    pl.lit(datetime.now(timezone.utc)).alias("dt_atualizacao"),
-                    pl.lit(nome_arquivo).alias("_source_file"),
-                ]
-            )
-            .sort(by=["data_referencia", "codigo_da_emenda"], descending=[True, False])
+        cond_emenda_valida = (
+            pl.col("codigo_da_emenda").is_not_null()
+            & (pl.col("codigo_da_emenda").str.strip_chars() != "Sem informação")
+            & (pl.col("codigo_da_emenda").str.strip_chars() != "")
         )
+
+        fato_favorecidos = df_bronze.select(
+            [
+                pl.when(cond_emenda_valida)
+                .then(pl.col("codigo_da_emenda").cast(pl.Int64, strict=False))
+                .otherwise(pl.lit(-1))
+                .alias("codigo_da_emenda"),
+                cond_emenda_valida.alias("codigo_emenda_informado"),
+                pl.col("codigo_do_autor_da_emenda").cast(pl.Int64, strict=False).alias("codigo_do_autor_da_emenda"),
+                pl.col("codigo_do_favorecido").str.strip_chars().alias("codigo_do_favorecido"),
+                pl.col("numero_da_emenda").cast(pl.Int64, strict=False).alias("numero_da_emenda"),
+                pl.col("ano_mes").str.to_date("%Y%m").alias("data_referencia"),
+                pl.col("nome_do_autor_da_emenda").str.strip_chars().alias("nome_do_autor_da_emenda"),
+                pl.col("tipo_de_emenda").str.strip_chars().alias("tipo_de_emenda"),
+                pl.col("favorecido").str.strip_chars().alias("favorecido"),
+                pl.col("natureza_juridica").str.strip_chars().alias("natureza_juridica"),
+                pl.col("tipo_favorecido").str.strip_chars().alias("tipo_favorecido"),
+                pl.col("uf_favorecido").str.strip_chars().alias("uf_favorecido"),
+                pl.col("municipio_favorecido").str.strip_chars().alias("municipio_favorecido"),
+                pl.col("valor_recebido")
+                .str.replace_all(r"\.", "")
+                .str.replace(",", ".")
+                .cast(pl.Float64, strict=False)
+                .alias("valor_recebido"),
+                pl.lit(datetime.now(timezone.utc)).alias("dt_atualizacao"),
+                pl.lit(nome_arquivo).alias("_source_file"),
+            ]
+        ).sort(by=["data_referencia", "codigo_da_emenda"], descending=[True, False])
 
         caminho_destino = Path(pasta_destino)
         caminho_destino.mkdir(parents=True, exist_ok=True)
@@ -161,6 +169,16 @@ def processar_silver_fato_favorecidos(
             fato_favorecidos.shape[1],
             tamanho_mb,
         )
+
+        metricas = calcular_reconciliacao(
+            df_bronze=df_bronze,
+            df_silver=fato_favorecidos,
+            entidade="fato_favorecidos",
+            col_valor_bronze="valor_recebido",
+            col_valor_silver="valor_recebido",
+            nome_metrica="Valor Pago Favorecido",
+        )
+        logar_relatorio_reconciliacao([metricas])
 
         return arquivo_saida
 
