@@ -18,8 +18,8 @@ def bronze_favorecidos_sample_df():
                 "20240001",
                 "20240002",  # Outra emenda repassando para o mesmo favorecido F1
                 "20240001",  # Mesma emenda repassando para F1 em outro mês
-                "Sem informação",  # Deve ser expurgado
-                None,  # Deve ser expurgado
+                "Sem informação",  # Preservado com sentinela -1
+                None,  # Preservado com sentinela -1
                 "20240003",
             ],
             "codigo_do_autor_da_emenda": ["100", "200", "100", "S/I", "300", "400"],
@@ -61,34 +61,34 @@ def bronze_favorecidos_sample_df():
                 "Associação Privada",
                 "Associação Privada",
                 "Associação Privada",
-                "Sociedade Empresária",
-                "Sociedade Empresária",
+                "Sociedade Empresária Limitada",
                 "Órgão Público",
+                "Município",
             ],
             "tipo_favorecido": [
+                "Entidade Privada sem Fins Lucrativos",
+                "Entidade Privada sem Fins Lucrativos",
+                "Entidade Privada sem Fins Lucrativos",
                 "Pessoa Jurídica",
-                "Pessoa Jurídica",
-                "Pessoa Jurídica",
-                "Pessoa Jurídica",
-                "Pessoa Jurídica",
-                "Pessoa Jurídica",
+                "Órgão Público Estadual",
+                "Município",
             ],
-            "uf_favorecido": ["SP", "SP", "SP", "-1", "RJ", "-1"],
+            "uf_favorecido": ["SP", "SP", "SP", "RJ", "DF", "-1"],
             "municipio_favorecido": [
                 "SÃO PAULO",
                 "SÃO PAULO",
                 "SÃO PAULO",
-                "Sem informação",
                 "RIO DE JANEIRO",
+                "BRASÍLIA",
                 "Sem informação",
             ],
             "valor_recebido": [
-                "150000,00",
-                "250000,50",
                 "100000,00",
+                "250000,50",
                 "50000,00",
                 "300000,00",
-                "1.250.000,75",
+                "450000,00",
+                "1250000,75",
             ],
         }
     )
@@ -182,21 +182,24 @@ def test_processar_silver_fato_favorecidos(mock_carregar, tmp_path, bronze_favor
 
     df_resultado = pl.read_parquet(arquivo_gerado)
 
-    # 1. Filtro: expurga 'Sem informação' e nulos em codigo_da_emenda
+    # 1. Preservação com sentinela: 'Sem informação' e nulos viram -1
     assert "Sem informação" not in df_resultado["codigo_da_emenda"].to_list()
     assert df_resultado["codigo_da_emenda"].null_count() == 0
+    assert -1 in df_resultado["codigo_da_emenda"].to_list()
 
-    # 2. Total de registros válidos (4 linhas preservadas, sem perda de relações)
-    assert df_resultado.shape[0] == 4
+    # 2. Total de registros: todos os 6 registros preservados com sentinelas
+    assert df_resultado.shape[0] == 6
 
-    # 3. 15 colunas esperadas
-    assert df_resultado.shape[1] == 15
+    # 3. 16 colunas esperadas (incluindo codigo_emenda_informado)
+    assert df_resultado.shape[1] == 16
+    assert "codigo_emenda_informado" in df_resultado.columns
     assert "data_referencia" in df_resultado.columns
     assert "dt_atualizacao" in df_resultado.columns
     assert "_source_file" in df_resultado.columns
 
     # 4. Tipagem
     assert df_resultado.schema["codigo_da_emenda"] == pl.Int64
+    assert df_resultado.schema["codigo_emenda_informado"] == pl.Boolean
     assert df_resultado.schema["codigo_do_autor_da_emenda"] == pl.Int64
     assert df_resultado.schema["codigo_do_favorecido"] == pl.String
     assert df_resultado.schema["numero_da_emenda"] == pl.Int64

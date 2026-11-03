@@ -1,6 +1,6 @@
 from unittest.mock import patch
 
-from etl_emendas_parlamentares.pipeline import pipeline, run_bronze, run_raw, run_silver
+from etl_emendas_parlamentares.pipeline import pipeline, run_bronze, run_gold, run_raw, run_silver
 
 
 @patch("etl_emendas_parlamentares.pipeline.processar_csv_para_parquet")
@@ -32,11 +32,19 @@ def test_run_silver(
     mock_upload_silver.assert_called_once()
 
 
+@patch("etl_emendas_parlamentares.pipeline.upload_gold")
+def test_run_gold(mock_upload_gold):
+    run_gold()
+    mock_upload_gold.assert_called_once()
+
+
+@patch("etl_emendas_parlamentares.pipeline.run_gold")
 @patch("etl_emendas_parlamentares.pipeline.run_silver")
 @patch("etl_emendas_parlamentares.pipeline.run_bronze")
 @patch("etl_emendas_parlamentares.pipeline.run_raw")
-def test_pipeline_completo(mock_raw, mock_bronze, mock_silver):
+def test_pipeline_completo(mock_raw, mock_bronze, mock_silver, mock_gold):
     pipeline()
     mock_raw.assert_called_once()
     mock_bronze.assert_called_once()
     mock_silver.assert_called_once()
+    mock_gold.assert_called_once()
