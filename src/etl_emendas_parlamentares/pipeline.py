@@ -1,3 +1,11 @@
+import sys
+from pathlib import Path
+
+# Assegura que o diretório 'src' esteja acessível no sys.path caso o script seja invocado diretamente por caminho de arquivo
+_src_dir = str(Path(__file__).resolve().parent.parent)
+if _src_dir not in sys.path:
+    sys.path.insert(0, _src_dir)
+
 from etl_emendas_parlamentares.ingestao.upload_bronze import upload_bronze
 from etl_emendas_parlamentares.ingestao.upload_gold import upload_gold
 from etl_emendas_parlamentares.ingestao.upload_silver import upload_silver
