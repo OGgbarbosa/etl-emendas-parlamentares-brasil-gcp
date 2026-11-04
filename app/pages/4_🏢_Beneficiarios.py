@@ -62,23 +62,33 @@ def main() -> None:
 
     k1, k2, k3, k4 = st.columns(4)
     with k1:
-        renderizar_card_metrica("Repassado a Beneficiários", formatar_moeda(total_recebido_ano, abreviado=True))
+        renderizar_card_metrica(
+            "Repassado a Beneficiários",
+            formatar_moeda(total_recebido_ano, abreviado=True),
+            "Recursos pagos no período",
+            classe_cor="color-success",
+        )
     with k2:
         renderizar_card_metrica(
             "Entidades Beneficiadas",
             formatar_numero(qtd_favorecidos),
             "Pessoas físicas e jurídicas",
-            "color-success",
+            classe_cor="color-primary",
         )
     with k3:
         renderizar_card_metrica(
             "Total em Convênios",
             formatar_moeda(total_conveniado, abreviado=True),
-            "Instrumentos deduplicados",
-            "color-primary",
+            "Instrumentos pactuados",
+            classe_cor="color-primary",
         )
     with k4:
-        renderizar_card_metrica("Convênios Pactuados", formatar_numero(qtd_convenios), classe_cor="color-warning")
+        renderizar_card_metrica(
+            "Convênios Pactuados",
+            formatar_numero(qtd_convenios),
+            "Contratos formalizados",
+            classe_cor="color-warning",
+        )
 
     st.markdown("<br>", unsafe_allow_html=True)
 

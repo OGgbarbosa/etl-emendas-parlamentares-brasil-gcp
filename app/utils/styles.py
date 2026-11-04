@@ -46,14 +46,33 @@ html, body, [class*="css"] {
     max-width: 850px;
 }
 
-/* Cards de Métricas Orçamentárias */
+/* Cards de Métricas Orçamentárias Rigorosamente Uniformes e Lineares */
+div[data-testid="column"] {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+}
+
+div[data-testid="column"] > div {
+    width: 100%;
+}
+
 .metric-card {
     background: #151C2C;
     border: 1px solid rgba(56, 189, 248, 0.15);
     border-radius: 10px;
-    padding: 1.2rem 1.4rem;
+    padding: 1.1rem 1.25rem;
+    height: 125px;
+    min-height: 125px;
+    max-height: 125px;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
     transition: transform 0.2s ease, border-color 0.2s ease;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+    box-sizing: border-box;
+    overflow: hidden;
 }
 
 .metric-card:hover {
@@ -63,21 +82,36 @@ html, body, [class*="css"] {
 
 .metric-label {
     color: #94A3B8;
-    font-size: 0.85rem;
+    font-size: 0.82rem;
     font-weight: 500;
-    margin-bottom: 0.4rem;
+    line-height: 1.2;
+    height: 1.2rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 0.25rem;
 }
 
 .metric-value {
     color: #F8FAFC;
-    font-size: 1.8rem;
+    font-size: 1.65rem;
     font-weight: 700;
     letter-spacing: -0.02em;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin: 0.1rem 0;
 }
 
 .metric-subtext {
-    font-size: 0.8rem;
-    margin-top: 0.3rem;
+    font-size: 0.78rem;
+    color: #64748B;
+    height: 1.1rem;
+    line-height: 1.1rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .color-primary { color: #38BDF8; }
@@ -85,14 +119,19 @@ html, body, [class*="css"] {
 .color-warning { color: #F59E0B; }
 .color-danger { color: #EF4444; }
 
-/* Cards de Navegação */
+/* Cards de Navegação Uniformes */
 .nav-card {
     background: #151C2C;
     border: 1px solid rgba(56, 189, 248, 0.15);
     border-radius: 10px;
-    padding: 1.4rem;
-    height: 100%;
+    padding: 1.25rem 1.4rem;
+    height: 145px;
+    min-height: 145px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
     transition: all 0.2s ease;
+    box-sizing: border-box;
 }
 
 .nav-card:hover {
@@ -102,15 +141,22 @@ html, body, [class*="css"] {
 
 .nav-card-title {
     color: #F8FAFC;
-    font-size: 1.15rem;
+    font-size: 1.1rem;
     font-weight: 600;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.4rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .nav-card-desc {
     color: #94A3B8;
-    font-size: 0.88rem;
+    font-size: 0.85rem;
     line-height: 1.5;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
 }
 
 /* Badges e tags */
@@ -169,12 +215,13 @@ def renderizar_card_metrica(
     subtexto: str = "",
     classe_cor: str = "color-primary",
 ) -> None:
-    """Renderiza um card individual de KPI com design system Dark & Blue."""
-    html = f"""
-    <div class="metric-card">
-        <div class="metric-label">{label}</div>
-        <div class="metric-value {classe_cor}">{valor}</div>
-        <div class="metric-subtext color-muted">{subtexto}</div>
-    </div>
-    """
+    """Renderiza um card individual de KPI com design system Dark & Blue rigorosamente uniforme."""
+    texto_sub = subtexto.strip() if subtexto else "&nbsp;"
+    html = (
+        f'<div class="metric-card">'
+        f'<div class="metric-label" title="{label}">{label}</div>'
+        f'<div class="metric-value {classe_cor}" title="{valor}">{valor}</div>'
+        f'<div class="metric-subtext color-muted">{texto_sub}</div>'
+        f"</div>"
+    )
     st.markdown(html, unsafe_allow_html=True)

@@ -9,6 +9,7 @@ for p in [_raiz, _src]:
     if p not in sys.path:
         sys.path.insert(0, p)
 
+import pandas as pd
 import plotly.express as px
 import streamlit as st
 
@@ -77,24 +78,34 @@ def main() -> None:
     qtd_emendas_autor = df_autor["QTD_EMENDAS"].sum()
     taxa_autor = (pago_autor / empenhado_autor * 100) if empenhado_autor > 0 else 0.0
 
-    c1, c2, c3, c4, c5 = st.columns(5)
+    c1, c2, c3, c4 = st.columns(4)
     with c1:
-        renderizar_card_metrica("Total Empenhado", formatar_moeda(empenhado_autor, abreviado=True))
+        renderizar_card_metrica(
+            "Total Empenhado",
+            formatar_moeda(empenhado_autor, abreviado=True),
+            f"Dotação ({formatar_numero(qtd_emendas_autor)} emendas)",
+            classe_cor="color-primary",
+        )
     with c2:
-        renderizar_card_metrica("Total Liquidado", formatar_moeda(liquidado_autor, abreviado=True))
+        renderizar_card_metrica(
+            "Total Liquidado",
+            formatar_moeda(liquidado_autor, abreviado=True),
+            "Execução atestada",
+            classe_cor="color-primary",
+        )
     with c3:
-        renderizar_card_metrica("Total Pago", formatar_moeda(pago_autor, abreviado=True), classe_cor="color-success")
+        renderizar_card_metrica(
+            "Total Pago",
+            formatar_moeda(pago_autor, abreviado=True),
+            f"Saldo RAP: {formatar_moeda(saldo_rap_autor, abreviado=True)}",
+            classe_cor="color-success",
+        )
     with c4:
         renderizar_card_metrica(
-            "Saldo Restos a Pagar",
-            formatar_moeda(saldo_rap_autor, abreviado=True),
-            classe_cor="color-warning",
-        )
-    with c5:
-        renderizar_card_metrica(
-            "Taxa Execução",
+            "Taxa de Execução",
             formatar_percentual(taxa_autor),
-            f"{formatar_numero(qtd_emendas_autor)} emendas",
+            "Percentual pago / empenhado",
+            classe_cor="color-warning" if taxa_autor < 70 else "color-success",
         )
 
     st.markdown("<br>", unsafe_allow_html=True)
@@ -189,7 +200,7 @@ def main() -> None:
     )
     st.plotly_chart(fig_scatter, use_container_width=True)
 
-    # 4. Tabela com Download (Valores numéricos intactos)
+    # 4. Tabela com Exportação
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("### 📋 Tabela Detalhada com Exportação")
 
@@ -205,7 +216,19 @@ def main() -> None:
             "TX_EXECUCAO",
         ]
     ].copy()
-    st.dataframe(df_tabela, use_container_width=True, hide_index=True)
+    df_tabela_display = pd.DataFrame(
+        {
+            "Ano": df_tabela["DT_ANO"],
+            "Parlamentar / Autor": df_tabela["DS_AUTOR"],
+            "UF": df_tabela["SG_UF"],
+            "Tipo de Emenda": df_tabela["DS_TIPO_EMENDA"],
+            "Qtd. Emendas": df_tabela["QTD_EMENDAS"].apply(formatar_numero),
+            "Valor Empenhado": df_tabela["VL_EMPENHADO"].apply(formatar_moeda),
+            "Valor Pago": df_tabela["VL_PAGO"].apply(formatar_moeda),
+            "Taxa de Execução": df_tabela["TX_EXECUCAO"].apply(formatar_percentual),
+        }
+    )
+    st.dataframe(df_tabela_display, use_container_width=True, hide_index=True)
 
 
 if __name__ == "__main__":

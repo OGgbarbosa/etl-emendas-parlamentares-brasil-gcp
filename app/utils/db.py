@@ -19,6 +19,8 @@ def carregar_tabela_gold(
     query_filtro: str = "",
     colunas: list[str] | None = None,
     limite: int | None = None,
+    order_by: str = "",
+    **kwargs,
 ) -> pd.DataFrame:
     """Executa consultas cacheadas sobre Data Marts e Views da Camada Gold no BigQuery.
 
@@ -27,6 +29,7 @@ def carregar_tabela_gold(
         query_filtro: Cláusula WHERE opcional (ex: "DT_ANO = 2023").
         colunas: Lista de colunas a selecionar (padrão: todas "*").
         limite: Limite de registros retornado (LIMIT).
+        order_by: Cláusula ORDER BY opcional para ordenação no BigQuery (ex: "VL_PAGO DESC").
 
     Returns:
         pd.DataFrame: DataFrame com os resultados tipados.
@@ -39,6 +42,8 @@ def carregar_tabela_gold(
         sql = f"SELECT {cols_str} FROM `{projeto}.{GOLD_DATASET}.{nome_tabela}`"
         if query_filtro:
             sql += f" WHERE {query_filtro}"
+        if order_by:
+            sql += f" ORDER BY {order_by}"
         if limite:
             sql += f" LIMIT {limite}"
 

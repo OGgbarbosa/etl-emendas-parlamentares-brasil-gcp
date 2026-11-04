@@ -66,22 +66,33 @@ def main() -> None:
 
     c1, c2, c3, c4 = st.columns(4)
     with c1:
-        renderizar_card_metrica("Total Pago na Região", formatar_moeda(total_pago, abreviado=True))
+        renderizar_card_metrica(
+            "Total Pago na Região",
+            formatar_moeda(total_pago, abreviado=True),
+            "Recursos liquidados e pagos",
+            classe_cor="color-success",
+        )
     with c2:
         renderizar_card_metrica(
             "Valor em Convênios",
             formatar_moeda(total_convenio, abreviado=True),
+            "Instrumentos celebrados",
             classe_cor="color-primary",
         )
     with c3:
         renderizar_card_metrica(
             "Municípios com Repasse",
             formatar_numero(qtd_mun),
-            "Cidades distintas",
-            "color-success",
+            "Cidades brasileiras atendidas",
+            classe_cor="color-primary",
         )
     with c4:
-        renderizar_card_metrica("Emendas Vinculadas", formatar_numero(qtd_emendas), classe_cor="color-warning")
+        renderizar_card_metrica(
+            "Emendas Vinculadas",
+            formatar_numero(qtd_emendas),
+            "Dotações orçamentárias",
+            classe_cor="color-warning",
+        )
 
     st.markdown("<br>", unsafe_allow_html=True)
 

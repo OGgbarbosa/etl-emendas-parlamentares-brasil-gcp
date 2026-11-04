@@ -235,7 +235,7 @@ def main() -> None:
     )
     df_resumo_funcao["Taxa de Execução (%)"] = (
         df_resumo_funcao["VL_PAGO"] / df_resumo_funcao["VL_EMPENHADO"] * 100
-    ).round(2)
+    ).apply(formatar_percentual)
     df_resumo_funcao["VL_EMPENHADO"] = df_resumo_funcao["VL_EMPENHADO"].apply(lambda v: formatar_moeda(v))
     df_resumo_funcao["VL_LIQUIDADO"] = df_resumo_funcao["VL_LIQUIDADO"].apply(lambda v: formatar_moeda(v))
     df_resumo_funcao["VL_PAGO"] = df_resumo_funcao["VL_PAGO"].apply(lambda v: formatar_moeda(v))
@@ -245,7 +245,7 @@ def main() -> None:
         "Valor Empenhado",
         "Valor Liquidado",
         "Valor Pago",
-        "Taxa Execução (%)",
+        "Taxa de Execução",
     ]
 
     st.dataframe(df_resumo_funcao, use_container_width=True, hide_index=True)
