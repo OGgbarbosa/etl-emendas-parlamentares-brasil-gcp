@@ -33,12 +33,9 @@ html, body, [class*="css"] {
     color: #F8FAFC;
     font-size: 2.2rem;
     font-weight: 700;
-    margin-bottom: 0.5rem;
-    letter-spacing: -0.02em;
-}
-
-.hero-title span {
-    color: #38BDF8;
+    margin-bottom: 0.6rem;
+    letter-spacing: -0.025em;
+    line-height: 1.25;
 }
 
 .hero-subtitle {
@@ -46,6 +43,7 @@ html, body, [class*="css"] {
     font-size: 1.05rem;
     line-height: 1.6;
     margin-bottom: 0;
+    max-width: 850px;
 }
 
 /* Cards de Métricas Orçamentárias */
@@ -65,10 +63,8 @@ html, body, [class*="css"] {
 
 .metric-label {
     color: #94A3B8;
-    font-size: 0.82rem;
+    font-size: 0.85rem;
     font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
     margin-bottom: 0.4rem;
 }
 

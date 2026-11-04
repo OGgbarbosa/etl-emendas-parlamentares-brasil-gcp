@@ -50,7 +50,7 @@ def main() -> None:
 
     # Hero Banner
     renderizar_hero(
-        titulo="Observatório de <span>Emendas Parlamentares</span>",
+        titulo="Observatório de Emendas Parlamentares da União",
         subtitulo=(
             "Plataforma analítica e de transparência pública para acompanhamento das dotações, "
             "execução orçamentária e destinação dos recursos das emendas federais do Brasil."

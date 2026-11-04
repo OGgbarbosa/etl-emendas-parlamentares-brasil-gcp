@@ -1,3 +1,4 @@
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
@@ -118,3 +119,14 @@ def test_carregar_kpis_macro_sucesso(mock_get_client):
     assert kpis["total_pago"] == 700000.0
     assert kpis["qtd_municipios"] == 450
     assert kpis["qtd_parlamentares"] == 150
+
+
+def test_skill_frontend_design_instalada():
+    caminho_skill = Path(".agents/skills/frontend-design/SKILL.md")
+    caminho_lic = Path(".agents/skills/frontend-design/LICENSE.txt")
+    assert caminho_skill.exists(), "SKILL.md deve existir no diretório .agents/skills/frontend-design"
+    assert caminho_lic.exists(), "LICENSE.txt deve existir no diretório .agents/skills/frontend-design"
+
+    conteudo = caminho_skill.read_text(encoding="utf-8")
+    assert "name: frontend-design" in conteudo
+    assert "description:" in conteudo
