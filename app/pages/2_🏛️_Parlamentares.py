@@ -27,7 +27,7 @@ aplicar_estilos_globais()
 
 def main() -> None:
     renderizar_hero(
-        titulo="🏛️ Raio-X dos <span>Parlamentares</span>",
+        titulo="Raio-X dos Parlamentares",
         subtitulo="Análise individualizada de deputados e senadores, rankings de liberação e quadrante de eficiência.",
         badge="Data Mart: tbl_execucao_parlamentar",
     )
@@ -86,11 +86,15 @@ def main() -> None:
         renderizar_card_metrica("Total Pago", formatar_moeda(pago_autor, abreviado=True), classe_cor="color-success")
     with c4:
         renderizar_card_metrica(
-            "Saldo Restos a Pagar", formatar_moeda(saldo_rap_autor, abreviado=True), classe_cor="color-warning"
+            "Saldo Restos a Pagar",
+            formatar_moeda(saldo_rap_autor, abreviado=True),
+            classe_cor="color-warning",
         )
     with c5:
         renderizar_card_metrica(
-            "Taxa Execução", formatar_percentual(taxa_autor), f"{formatar_numero(qtd_emendas_autor)} emendas"
+            "Taxa Execução",
+            formatar_percentual(taxa_autor),
+            f"{formatar_numero(qtd_emendas_autor)} emendas",
         )
 
     st.markdown("<br>", unsafe_allow_html=True)
@@ -105,6 +109,7 @@ def main() -> None:
         .sort_values("VL_PAGO", ascending=False)
         .head(15)
     )
+    df_ranking["VL_PAGO_TXT"] = df_ranking["VL_PAGO"].apply(lambda v: formatar_moeda(v, abreviado=True))
 
     fig_bar = px.bar(
         df_ranking,
@@ -114,14 +119,25 @@ def main() -> None:
         color="VL_PAGO",
         color_continuous_scale=["#151C2C", "#2563EB", "#38BDF8"],
         labels={"VL_PAGO": "Valor Pago (BRL)", "DS_AUTOR": "Parlamentar"},
+        text="VL_PAGO_TXT",
+    )
+    fig_bar.update_traces(
+        textposition="auto",
+        hovertemplate="<b>%{y}</b><br>Valor Pago: %{text}<extra></extra>",
     )
     fig_bar.update_layout(
         template="plotly_dark",
         paper_bgcolor="#151C2C",
         plot_bgcolor="#151C2C",
         margin={"l": 20, "r": 20, "t": 20, "b": 20},
-        height=450,
+        height=480,
         yaxis={"autorange": "reversed"},
+        xaxis={
+            "title": "Valor Pago",
+            "tickprefix": "R$ ",
+            "tickformat": "~s",
+            "gridcolor": "rgba(255,255,255,0.08)",
+        },
     )
     st.plotly_chart(fig_bar, use_container_width=True)
 
@@ -134,8 +150,10 @@ def main() -> None:
     df_quadrante = (
         df_base.groupby(["DS_AUTOR", "SG_UF"])[["VL_EMPENHADO", "VL_PAGO", "QTD_EMENDAS"]].sum().reset_index()
     )
-    df_quadrante = df_quadrante[df_quadrante["VL_EMPENHADO"] > 0]
+    df_quadrante = df_quadrante[df_quadrante["VL_EMPENHADO"] > 0].copy()
     df_quadrante["TAXA_EXEC"] = (df_quadrante["VL_PAGO"] / df_quadrante["VL_EMPENHADO"] * 100).round(2)
+    df_quadrante["EMPENHADO_TXT"] = df_quadrante["VL_EMPENHADO"].apply(lambda v: formatar_moeda(v, abreviado=True))
+    df_quadrante["PAGO_TXT"] = df_quadrante["VL_PAGO"].apply(lambda v: formatar_moeda(v, abreviado=True))
 
     fig_scatter = px.scatter(
         df_quadrante,
@@ -144,12 +162,16 @@ def main() -> None:
         size="QTD_EMENDAS",
         color="SG_UF",
         hover_name="DS_AUTOR",
+        custom_data=["EMPENHADO_TXT", "PAGO_TXT", "SG_UF", "QTD_EMENDAS"],
         labels={
-            "VL_EMPENHADO": "Volume Empenhado (BRL)",
+            "VL_EMPENHADO": "Volume Empenhado",
             "TAXA_EXEC": "Taxa de Execução (%)",
             "SG_UF": "UF",
             "QTD_EMENDAS": "Emendas",
         },
+    )
+    fig_scatter.update_traces(
+        hovertemplate="<b>%{hovertext} (%{customdata[2]})</b><br>Empenhado: %{customdata[0]}<br>Pago: %{customdata[1]}<br>Emendas: %{customdata[3]}<br>Taxa Execução: %{y:.1f}%<extra></extra>"
     )
     fig_scatter.update_layout(
         template="plotly_dark",
@@ -158,16 +180,30 @@ def main() -> None:
         margin={"l": 20, "r": 20, "t": 20, "b": 20},
         height=480,
         yaxis={"range": [0, 105], "gridcolor": "rgba(255,255,255,0.08)"},
-        xaxis={"gridcolor": "rgba(255,255,255,0.08)"},
+        xaxis={
+            "title": "Volume Empenhado",
+            "tickprefix": "R$ ",
+            "tickformat": "~s",
+            "gridcolor": "rgba(255,255,255,0.08)",
+        },
     )
     st.plotly_chart(fig_scatter, use_container_width=True)
 
-    # 4. Tabela com Download
+    # 4. Tabela com Download (Valores numéricos intactos)
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("### 📋 Tabela Detalhada com Exportação")
 
     df_tabela = df_base[
-        ["DT_ANO", "DS_AUTOR", "SG_UF", "DS_TIPO_EMENDA", "QTD_EMENDAS", "VL_EMPENHADO", "VL_PAGO", "TX_EXECUCAO"]
+        [
+            "DT_ANO",
+            "DS_AUTOR",
+            "SG_UF",
+            "DS_TIPO_EMENDA",
+            "QTD_EMENDAS",
+            "VL_EMPENHADO",
+            "VL_PAGO",
+            "TX_EXECUCAO",
+        ]
     ].copy()
     st.dataframe(df_tabela, use_container_width=True, hide_index=True)
 

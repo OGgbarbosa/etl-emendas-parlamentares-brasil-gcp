@@ -136,7 +136,7 @@ def responder_pergunta(prompt: str) -> dict:
 
 def main() -> None:
     renderizar_hero(
-        titulo="🤖 Assistente IA de <span>Consulta Natural</span>",
+        titulo="Assistente IA de Consulta Natural",
         subtitulo="Consulte a base oficial de emendas em linguagem natural com suporte a RAG e dados auditados do BigQuery.",
         badge="Google Vertex AI • BigQuery Semantic Views",
     )

@@ -27,7 +27,7 @@ aplicar_estilos_globais()
 
 def main() -> None:
     renderizar_hero(
-        titulo="🏢 Beneficiários, Fornecedores & <span>Convênios</span>",
+        titulo="Beneficiários, Fornecedores e Convênios",
         subtitulo="Auditoria cívica de empresas, prefeituras, fundos e entidades recebedoras de recursos das emendas.",
         badge="Data Marts: tbl_ranking_favorecidos & tbl_painel_convenios",
     )
@@ -65,7 +65,10 @@ def main() -> None:
         renderizar_card_metrica("Repassado a Beneficiários", formatar_moeda(total_recebido_ano, abreviado=True))
     with k2:
         renderizar_card_metrica(
-            "Entidades Beneficiadas", formatar_numero(qtd_favorecidos), "Pessoas físicas e jurídicas", "color-success"
+            "Entidades Beneficiadas",
+            formatar_numero(qtd_favorecidos),
+            "Pessoas físicas e jurídicas",
+            "color-success",
         )
     with k3:
         renderizar_card_metrica(
@@ -90,6 +93,7 @@ def main() -> None:
         .sort_values("VL_RECEBIDO_ANO", ascending=False)
         .head(20)
     )
+    df_top["VL_RECEBIDO_TXT"] = df_top["VL_RECEBIDO_ANO"].apply(lambda v: formatar_moeda(v, abreviado=True))
 
     fig_fav = px.bar(
         df_top,
@@ -98,7 +102,12 @@ def main() -> None:
         orientation="h",
         color="VL_RECEBIDO_ANO",
         color_continuous_scale=["#151C2C", "#2563EB", "#38BDF8"],
-        labels={"VL_RECEBIDO_ANO": "Valor Recebido (BRL)", "DS_FAVORECIDO": "Beneficiário"},
+        labels={"VL_RECEBIDO_ANO": "Valor Recebido", "DS_FAVORECIDO": "Beneficiário"},
+        text="VL_RECEBIDO_TXT",
+    )
+    fig_fav.update_traces(
+        textposition="auto",
+        hovertemplate="<b>%{y}</b><br>Valor Recebido: %{text}<extra></extra>",
     )
     fig_fav.update_layout(
         template="plotly_dark",
@@ -107,6 +116,12 @@ def main() -> None:
         margin={"l": 10, "r": 10, "t": 10, "b": 10},
         height=520,
         yaxis={"autorange": "reversed"},
+        xaxis={
+            "title": "Valor Recebido",
+            "tickprefix": "R$ ",
+            "tickformat": "~s",
+            "gridcolor": "rgba(255,255,255,0.08)",
+        },
     )
     st.plotly_chart(fig_fav, use_container_width=True)
 

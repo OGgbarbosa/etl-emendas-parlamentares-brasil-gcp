@@ -28,7 +28,7 @@ aplicar_estilos_globais()
 
 def main() -> None:
     renderizar_hero(
-        titulo="📊 Visão Geral & <span>Macro-Orçamento</span>",
+        titulo="Visão Geral e Macro-Orçamento",
         subtitulo="Acompanhamento da execução financeira agregada, evolução histórica do ciclo da despesa e alocação setorial.",
         badge="Data Mart: tbl_politicas_publicas & tbl_execucao_parlamentar",
     )
@@ -106,46 +106,60 @@ def main() -> None:
     # 1. Gráfico de Área da Evolução Orçamentária
     st.markdown("### 📈 Evolução Histórica do Ciclo Orçamentário")
 
-    # Agrupa por ano na base geral
+    # Agrupa por ano (respeitando o filtro de tipo de emenda, se houver)
+    df_tempo_base = (
+        df_execucao if tipo_sel == "Todas as Modalidades" else df_execucao[df_execucao["DS_TIPO_EMENDA"] == tipo_sel]
+    )
     df_tempo = (
-        df_execucao.groupby("DT_ANO")[["VL_EMPENHADO", "VL_LIQUIDADO", "VL_PAGO"]]
+        df_tempo_base.groupby("DT_ANO")[["VL_EMPENHADO", "VL_LIQUIDADO", "VL_PAGO"]]
         .sum()
         .reset_index()
         .sort_values("DT_ANO")
     )
+
+    # Valores formatados para exibição visual no hover
+    empenhado_txt = df_tempo["VL_EMPENHADO"].apply(lambda v: formatar_moeda(v, abreviado=True))
+    liquidado_txt = df_tempo["VL_LIQUIDADO"].apply(lambda v: formatar_moeda(v, abreviado=True))
+    pago_txt = df_tempo["VL_PAGO"].apply(lambda v: formatar_moeda(v, abreviado=True))
 
     fig_tempo = go.Figure()
     fig_tempo.add_trace(
         go.Scatter(
             x=df_tempo["DT_ANO"],
             y=df_tempo["VL_EMPENHADO"],
+            customdata=empenhado_txt,
             mode="lines+markers",
             name="Empenhado",
             line={"color": "#38BDF8", "width": 3},
             fill="tozeroy",
             fillcolor="rgba(56, 189, 248, 0.1)",
+            hovertemplate="<b>Empenhado (%{x})</b>: %{customdata}<extra></extra>",
         )
     )
     fig_tempo.add_trace(
         go.Scatter(
             x=df_tempo["DT_ANO"],
             y=df_tempo["VL_LIQUIDADO"],
+            customdata=liquidado_txt,
             mode="lines+markers",
             name="Liquidado",
             line={"color": "#2563EB", "width": 2.5},
             fill="tonexty",
             fillcolor="rgba(37, 99, 235, 0.1)",
+            hovertemplate="<b>Liquidado (%{x})</b>: %{customdata}<extra></extra>",
         )
     )
     fig_tempo.add_trace(
         go.Scatter(
             x=df_tempo["DT_ANO"],
             y=df_tempo["VL_PAGO"],
+            customdata=pago_txt,
             mode="lines+markers",
             name="Pago",
             line={"color": "#10B981", "width": 3},
             fill="tonexty",
             fillcolor="rgba(16, 185, 129, 0.15)",
+            hovertemplate="<b>Pago (%{x})</b>: %{customdata}<extra></extra>",
         )
     )
 
@@ -158,7 +172,12 @@ def main() -> None:
         legend={"orientation": "h", "yanchor": "bottom", "y": 1.02, "xanchor": "right", "x": 1},
         hovermode="x unified",
         xaxis={"title": "Exercício Fiscal", "dtick": 1},
-        yaxis={"title": "Valor em Reais (BRL)", "gridcolor": "rgba(255,255,255,0.08)"},
+        yaxis={
+            "title": "Volume Orçamentário",
+            "tickprefix": "R$ ",
+            "tickformat": "~s",
+            "gridcolor": "rgba(255,255,255,0.08)",
+        },
     )
     st.plotly_chart(fig_tempo, use_container_width=True)
 
@@ -166,20 +185,28 @@ def main() -> None:
 
     # 2. Treemap de Políticas Públicas
     st.markdown("### 🌳 Distribuição Temática de Políticas Públicas (Função ➔ Subfunção)")
-    st.caption("Clique nos retângulos para dar drill-down nas subfunções de cada área de governo.")
+    st.caption("Visualização hierárquica por área temática. Clique nos retângulos para detalhar subfunções.")
 
     # Agrupa por Função e Subfunção no dataset filtrado
     df_tree = df_pol_filtrado.groupby(["DS_FUNCAO", "DS_SUBFUNCAO"])[["VL_PAGO", "VL_EMPENHADO"]].sum().reset_index()
-    df_tree = df_tree[df_tree["VL_PAGO"] > 0]
+    df_tree = df_tree[df_tree["VL_PAGO"] > 0].copy()
+
+    # Diferencia Subfunção quando coincidir com o nome da Função para prevenir loop no Plotly
+    df_tree["SUBFUNCAO_LABEL"] = df_tree.apply(
+        lambda r: f"{r['DS_SUBFUNCAO']} " if r["DS_SUBFUNCAO"] == r["DS_FUNCAO"] else r["DS_SUBFUNCAO"],
+        axis=1,
+    )
+    df_tree["VL_PAGO_ABREV"] = df_tree["VL_PAGO"].apply(lambda v: formatar_moeda(v, abreviado=True))
 
     if not df_tree.empty:
         fig_tree = px.treemap(
             df_tree,
-            path=["DS_FUNCAO", "DS_SUBFUNCAO"],
+            path=["DS_FUNCAO", "SUBFUNCAO_LABEL"],
             values="VL_PAGO",
             color="VL_PAGO",
             color_continuous_scale=["#0D1527", "#1E40AF", "#38BDF8", "#10B981"],
             title="",
+            custom_data=["VL_PAGO_ABREV"],
         )
         fig_tree.update_layout(
             template="plotly_dark",
@@ -188,8 +215,9 @@ def main() -> None:
             height=480,
         )
         fig_tree.update_traces(
-            textinfo="label+value+percent parent",
-            hovertemplate="<b>%{label}</b><br>Valor Pago: R$ %{value:,.2f}<extra></extra>",
+            textinfo="label+value",
+            texttemplate="<b>%{label}</b><br>%{customdata[0]}",
+            hovertemplate="<b>%{label}</b><br>Valor Pago: %{customdata[0]}<br>(%{percentParent:.1%} do setor pai)<extra></extra>",
         )
         st.plotly_chart(fig_tree, use_container_width=True)
     else:
@@ -203,7 +231,7 @@ def main() -> None:
         df_pol_filtrado.groupby("DS_FUNCAO")[["VL_EMPENHADO", "VL_LIQUIDADO", "VL_PAGO"]]
         .sum()
         .reset_index()
-        .sort_values("VL_PAGO", reverse=True)
+        .sort_values("VL_PAGO", ascending=False)
     )
     df_resumo_funcao["Taxa de Execução (%)"] = (
         df_resumo_funcao["VL_PAGO"] / df_resumo_funcao["VL_EMPENHADO"] * 100

@@ -27,7 +27,7 @@ aplicar_estilos_globais()
 
 def main() -> None:
     renderizar_hero(
-        titulo="🗺️ Distribuição Geográfica & <span>Mapa Brasil</span>",
+        titulo="Distribuição Geográfica e Mapa Brasil",
         subtitulo="Repasses consolidados por Unidade Federativa, cidades beneficiadas e âmbito de destinação.",
         badge="Data Mart: tbl_distribuicao_geografica",
     )
@@ -69,11 +69,16 @@ def main() -> None:
         renderizar_card_metrica("Total Pago na Região", formatar_moeda(total_pago, abreviado=True))
     with c2:
         renderizar_card_metrica(
-            "Valor em Convênios", formatar_moeda(total_convenio, abreviado=True), classe_cor="color-primary"
+            "Valor em Convênios",
+            formatar_moeda(total_convenio, abreviado=True),
+            classe_cor="color-primary",
         )
     with c3:
         renderizar_card_metrica(
-            "Municípios com Repasse", formatar_numero(qtd_mun), "Cidades distintas", "color-success"
+            "Municípios com Repasse",
+            formatar_numero(qtd_mun),
+            "Cidades distintas",
+            "color-success",
         )
     with c4:
         renderizar_card_metrica("Emendas Vinculadas", formatar_numero(qtd_emendas), classe_cor="color-warning")
@@ -91,38 +96,57 @@ def main() -> None:
             .reset_index()
             .sort_values("VL_PAGO", ascending=False)
         )
+        df_uf["VL_PAGO_TXT"] = df_uf["VL_PAGO"].apply(lambda v: formatar_moeda(v, abreviado=True))
+
         fig_uf = px.bar(
             df_uf,
             x="SG_UF",
             y="VL_PAGO",
             color="VL_PAGO",
             color_continuous_scale=["#151C2C", "#2563EB", "#38BDF8"],
-            labels={"SG_UF": "UF", "VL_PAGO": "Valor Pago (BRL)"},
+            labels={"SG_UF": "UF", "VL_PAGO": "Valor Pago"},
+            text="VL_PAGO_TXT",
+        )
+        fig_uf.update_traces(
+            textposition="auto",
+            hovertemplate="<b>%{x}</b><br>Valor Pago: %{text}<extra></extra>",
         )
         fig_uf.update_layout(
             template="plotly_dark",
             paper_bgcolor="#151C2C",
             plot_bgcolor="#151C2C",
             margin={"l": 10, "r": 10, "t": 10, "b": 10},
-            height=360,
+            height=380,
+            yaxis={
+                "title": "Valor Pago",
+                "tickprefix": "R$ ",
+                "tickformat": "~s",
+                "gridcolor": "rgba(255,255,255,0.08)",
+            },
         )
         st.plotly_chart(fig_uf, use_container_width=True)
 
     with col_reg:
         st.markdown("### 🍩 Share por Grande Região")
         df_reg = df_geo.groupby("SG_REGIAO")["VL_PAGO"].sum().reset_index()
+        df_reg["VL_PAGO_TXT"] = df_reg["VL_PAGO"].apply(lambda v: formatar_moeda(v, abreviado=True))
+
         fig_donut = px.pie(
             df_reg,
             values="VL_PAGO",
             names="SG_REGIAO",
             hole=0.55,
             color_discrete_sequence=["#38BDF8", "#2563EB", "#10B981", "#F59E0B", "#8B5CF6", "#64748B"],
+            custom_data=["VL_PAGO_TXT"],
+        )
+        fig_donut.update_traces(
+            hovertemplate="<b>%{label}</b><br>Valor Pago: %{customdata[0]}<br>Share: %{percent}<extra></extra>",
         )
         fig_donut.update_layout(
             template="plotly_dark",
             paper_bgcolor="#151C2C",
             margin={"l": 10, "r": 10, "t": 10, "b": 10},
-            height=360,
+            height=380,
             showlegend=True,
         )
         st.plotly_chart(fig_donut, use_container_width=True)
@@ -140,6 +164,7 @@ def main() -> None:
         .head(20)
     )
     df_mun["Cidade"] = df_mun["DS_MUNICIPIO"] + " - " + df_mun["SG_UF"]
+    df_mun["VL_PAGO_TXT"] = df_mun["VL_PAGO"].apply(lambda v: formatar_moeda(v, abreviado=True))
 
     fig_mun = px.bar(
         df_mun,
@@ -148,7 +173,12 @@ def main() -> None:
         orientation="h",
         color="VL_PAGO",
         color_continuous_scale=["#151C2C", "#10B981", "#38BDF8"],
-        labels={"VL_PAGO": "Valor Pago (BRL)", "Cidade": "Município"},
+        labels={"VL_PAGO": "Valor Pago", "Cidade": "Município"},
+        text="VL_PAGO_TXT",
+    )
+    fig_mun.update_traces(
+        textposition="auto",
+        hovertemplate="<b>%{y}</b><br>Valor Pago: %{text}<extra></extra>",
     )
     fig_mun.update_layout(
         template="plotly_dark",
@@ -157,6 +187,12 @@ def main() -> None:
         margin={"l": 10, "r": 10, "t": 10, "b": 10},
         height=520,
         yaxis={"autorange": "reversed"},
+        xaxis={
+            "title": "Valor Pago",
+            "tickprefix": "R$ ",
+            "tickformat": "~s",
+            "gridcolor": "rgba(255,255,255,0.08)",
+        },
     )
     st.plotly_chart(fig_mun, use_container_width=True)
 
