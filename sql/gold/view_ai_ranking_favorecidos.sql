@@ -1,4 +1,4 @@
-CREATE OR REPLACE VIEW `project-f2711ebc-82b0-49cb-b84.3_gold.view_ai_ranking_favorecidos` (
+CREATE OR REPLACE VIEW `{PROJECT_ID}.3_gold.view_ai_ranking_favorecidos` (
     DT_ANO OPTIONS(description="Ano civil de repasse financeiro efetivo das emendas ao favorecido. Tipo: INT64."),
     CD_FAVORECIDO OPTIONS(description="Identificador fiscal ou código único do beneficiário (CNPJ para pessoas jurídicas, CPF mascarado para físicas, ou código de órgão público)."),
     DS_FAVORECIDO OPTIONS(description="Razão social, nome de fantasia ou denominação oficial da entidade beneficiária."),
@@ -66,4 +66,4 @@ SELECT
         CAST(QTD_EMENDAS_DISTINTAS_ANO AS STRING), ' emenda(s). No total histórico acumulado em toda a base, o beneficiário soma R$ ', 
         COALESCE(FORMAT("%'.2f", VL_RECEBIDO_TOTAL_HISTORICO), '0.00'), '.'
     ) AS DS_RESUMO_SEMANTICO
-FROM `project-f2711ebc-82b0-49cb-b84.3_gold.tbl_ranking_favorecidos`;
+FROM `{PROJECT_ID}.3_gold.tbl_ranking_favorecidos`;

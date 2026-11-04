@@ -1,4 +1,4 @@
-CREATE OR REPLACE VIEW `project-f2711ebc-82b0-49cb-b84.3_gold.view_ai_distribuicao_geografica` (
+CREATE OR REPLACE VIEW `{PROJECT_ID}.3_gold.view_ai_distribuicao_geografica` (
     DT_ANO OPTIONS(description="Ano de referência do orçamento da emenda parlamentar (exercício fiscal). Tipo: INT64."),
     SG_REGIAO OPTIONS(description="Grande região geográfica brasileira de destino (NORTE, NORDESTE, SUDESTE, SUL, CENTRO-OESTE ou NACIONAL)."),
     SG_UF OPTIONS(description="Sigla da Unidade Federativa de destino dos recursos (ex.: SP, BA, NACI para âmbito nacional)."),
@@ -63,4 +63,4 @@ SELECT
         COALESCE(CAST(TX_EXECUCAO AS STRING), '0.00'), '%). Valor pactuado em convênios: R$ ', 
         COALESCE(FORMAT("%'.2f", VL_CONVENIO), '0.00'), '.'
     ) AS DS_RESUMO_SEMANTICO
-FROM `project-f2711ebc-82b0-49cb-b84.3_gold.tbl_distribuicao_geografica`;
+FROM `{PROJECT_ID}.3_gold.tbl_distribuicao_geografica`;

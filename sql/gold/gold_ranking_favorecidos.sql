@@ -1,4 +1,4 @@
-CREATE OR REPLACE TABLE `project-f2711ebc-82b0-49cb-b84.3_gold.tbl_ranking_favorecidos`
+CREATE OR REPLACE TABLE `{PROJECT_ID}.3_gold.tbl_ranking_favorecidos`
 CLUSTER BY DT_ANO, SG_UF_FAVORECIDO, DS_TIPO_FAVORECIDO, CD_FAVORECIDO
 AS
 
@@ -27,7 +27,7 @@ WITH agregacao_favorecido_ano AS (
         MIN(data_referencia) AS DT_PRIMEIRO_RECEBIMENTO_ANO,
         MAX(data_referencia) AS DT_ULTIMO_RECEBIMENTO_ANO
 
-    FROM `project-f2711ebc-82b0-49cb-b84.2_silver.fato_favorecidos`
+    FROM `{PROJECT_ID}.2_silver.fato_favorecidos`
     GROUP BY 1, 2, 3, 4, 5, 6
 )
 

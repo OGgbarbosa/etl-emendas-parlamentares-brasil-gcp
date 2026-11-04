@@ -1,5 +1,5 @@
 CREATE OR REPLACE TABLE 
-`project-f2711ebc-82b0-49cb-b84.3_gold.tbl_execucao_parlamentar`
+`{PROJECT_ID}.3_gold.tbl_execucao_parlamentar`
 
 CLUSTER BY DT_ANO, CD_AUTOR, SG_UF, DS_TIPO_EMENDA
 
@@ -39,6 +39,6 @@ ano_emenda as DT_ANO
 -- Metadados de carga
 ,CURRENT_TIMESTAMP() AS DH_PROCESSAMENTO
 
-FROM `project-f2711ebc-82b0-49cb-b84.2_silver.fato_emendas` 
+FROM `{PROJECT_ID}.2_silver.fato_emendas` 
 
 GROUP BY 1,2,3,4,5

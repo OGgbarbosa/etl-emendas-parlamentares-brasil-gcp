@@ -64,8 +64,9 @@ def preparar_sql_query(
     gold_dataset: str = GOLD_DATASET,
 ) -> str:
     """Ajusta referências de projeto e datasets no SQL para portabilidade entre ambientes."""
-    # Substitui projeto padrão caso o cliente esteja rodando sob outro GCP_PROJECT_ID
-    query = conteudo_sql.replace("project-f2711ebc-82b0-49cb-b84", projeto_destino)
+    # Substitui placeholder de projeto para o GCP_PROJECT_ID configurado no ambiente
+    query = conteudo_sql.replace("{PROJECT_ID}", projeto_destino)
+    query = query.replace("{{project_id}}", projeto_destino)
 
     # Garante que os datasets utilizados correspondam às configurações do ambiente
     query = query.replace("2_silver", silver_dataset)

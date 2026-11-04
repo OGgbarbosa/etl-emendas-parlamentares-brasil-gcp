@@ -76,7 +76,7 @@ Cada fonte possuirá sua própria tabela bruta com histórico cumulativo e prese
 
 **Campos da Tabela Bruta:**
 ```sql
-CREATE TABLE IF NOT EXISTS `project-f2711ebc-82b0-49cb-b84.2_silver.raw_scraping_folha` (
+CREATE TABLE IF NOT EXISTS `{PROJECT_ID}.2_silver.raw_scraping_folha` (
     id_requisicao STRING NOT NULL OPTIONS(description="UUID único da requisição"),
     url_artigo STRING NOT NULL OPTIONS(description="URL canônica do artigo coletado"),
     nome_fonte STRING NOT NULL OPTIONS(description="Identificador da fonte (ex: folha)"),
@@ -115,7 +115,7 @@ Tabela analítica consolidando todas as fontes, com texto limpo, deduplicação 
 
 **DDL de Criação:**
 ```sql
-CREATE TABLE IF NOT EXISTS `project-f2711ebc-82b0-49cb-b84.2_silver.fato_noticias_contexto` (
+CREATE TABLE IF NOT EXISTS `{PROJECT_ID}.2_silver.fato_noticias_contexto` (
     id_artigo STRING NOT NULL,
     nome_fonte STRING NOT NULL,
     url_artigo STRING NOT NULL,

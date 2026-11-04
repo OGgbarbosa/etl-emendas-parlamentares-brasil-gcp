@@ -1,4 +1,4 @@
-CREATE OR REPLACE TABLE `project-f2711ebc-82b0-49cb-b84.3_gold.tbl_painel_convenios`
+CREATE OR REPLACE TABLE `{PROJECT_ID}.3_gold.tbl_painel_convenios`
 CLUSTER BY DT_ANO, SG_UF, DS_FUNCAO
 AS
 
@@ -12,7 +12,7 @@ WITH convenios_unicos AS (
         COALESCE(NULLIF(TRIM(nome_funcao), ''), 'NÃO INFORMADO') AS DS_FUNCAO,
         MAX(valor_convenio) AS valor_convenio,
         COUNT(DISTINCT codigo_da_emenda) AS qtd_emendas_no_convenio
-    FROM `project-f2711ebc-82b0-49cb-b84.2_silver.fato_convenios`
+    FROM `{PROJECT_ID}.2_silver.fato_convenios`
     GROUP BY 1, 2, 3, 4, 5
 )
 
