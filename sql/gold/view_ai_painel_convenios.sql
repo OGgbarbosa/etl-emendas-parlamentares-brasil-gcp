@@ -8,6 +8,8 @@ CREATE OR REPLACE VIEW `project-f2711ebc-82b0-49cb-b84.3_gold.view_ai_painel_con
     QTD_EMENDAS_VINCULADAS OPTIONS(description="Quantidade de emendas parlamentares distintas associadas a esses convênios."),
     VL_TOTAL_CONVENIADO OPTIONS(description="Valor monetário global pactuado nos convênios (com deduplicação estrita de instrumentos). Unidade: Reais (BRL). Aditivo entre convenentes e funções."),
     TKM_VALOR_POR_CONVENIO OPTIONS(description="Ticket médio pactuado por instrumento de convênio (VL_TOTAL_CONVENIADO / QTD_CONVENIOS). Regra para IA: NUNCA tire média de médias; recalcule com ROUND(SAFE_DIVIDE(SUM(VL_TOTAL_CONVENIADO), SUM(QTD_CONVENIOS)), 2)."),
+    VL_TOTAL_CONVENIADO_BRL OPTIONS(description="Valor monetário global pactuado nos convênios formatado em reais brasileiros (BRL). Tipo: STRING."),
+    TKM_VALOR_POR_CONVENIO_BRL OPTIONS(description="Ticket médio pactuado por convênio formatado em reais brasileiros (BRL). Tipo: STRING."),
     DH_PROCESSAMENTO OPTIONS(description="Timestamp UTC de materialização do Data Mart Gold de origem."),
     DS_RESUMO_SEMANTICO OPTIONS(description="Narrativa em linguagem natural formatada para indexação vetorial e RAG no Vertex AI. Sintetiza convenente, estado, função governamental, total conveniado e ticket médio.")
 )
@@ -26,13 +28,15 @@ SELECT
     QTD_EMENDAS_VINCULADAS,
     VL_TOTAL_CONVENIADO,
     TKM_VALOR_POR_CONVENIO,
+    CONCAT('R$ ', FORMAT("%'.2f", COALESCE(VL_TOTAL_CONVENIADO, 0.0))) AS VL_TOTAL_CONVENIADO_BRL,
+    CONCAT('R$ ', FORMAT("%'.2f", COALESCE(TKM_VALOR_POR_CONVENIO, 0.0))) AS TKM_VALOR_POR_CONVENIO_BRL,
     DH_PROCESSAMENTO,
     CONCAT(
         'No ano de ', CASE WHEN DT_ANO > 0 THEN CAST(DT_ANO AS STRING) ELSE 'Não informado' END, 
-        ', o convenente ', DS_CONVENENTE, ' (UF: ', SG_UF, ', Área: ', DS_FUNCAO, 
+        ', o convenente ', COALESCE(DS_CONVENENTE, 'Não informado'), ' (UF: ', COALESCE(SG_UF, 'NACI'), ', Área: ', COALESCE(DS_FUNCAO, 'Geral'), 
         ') pactuou ', CAST(QTD_CONVENIOS AS STRING), ' convênio(s) vinculados a ', 
         CAST(QTD_EMENDAS_VINCULADAS AS STRING), ' emenda(s) parlamentar(es). O valor total conveniado foi de R$ ', 
-        FORMAT("%'.2f", VL_TOTAL_CONVENIADO), ', com ticket médio de R$ ', 
-        FORMAT("%'.2f", TKM_VALOR_POR_CONVENIO), ' por instrumento.'
+        COALESCE(FORMAT("%'.2f", VL_TOTAL_CONVENIADO), '0.00'), ', com ticket médio de R$ ', 
+        COALESCE(FORMAT("%'.2f", TKM_VALOR_POR_CONVENIO), '0.00'), ' por instrumento.'
     ) AS DS_RESUMO_SEMANTICO
 FROM `project-f2711ebc-82b0-49cb-b84.3_gold.tbl_painel_convenios`;

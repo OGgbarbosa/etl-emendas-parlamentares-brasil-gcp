@@ -16,6 +16,12 @@ CREATE OR REPLACE VIEW `project-f2711ebc-82b0-49cb-b84.3_gold.view_ai_politicas_
     PC_REPRESENTATIVIDADE_PAGO OPTIONS(description="Percentual de representatividade do pagamento desta função no total pago de emendas daquele ano. Regra para IA: Não aditivo entre filtros parciais."),
     VL_PAGO_ANO_ANTERIOR OPTIONS(description="Valor total pago no ano imediatamente anterior (ano - 1) para a mesma função, subfunção e modalidade. Unidade: Reais (BRL)."),
     TX_CRESCIMENTO_YOY_PAGO OPTIONS(description="Taxa percentual de crescimento anual do valor pago comparado ao ano anterior (Year-over-Year)."),
+    VL_EMPENHADO_BRL OPTIONS(description="Valor empenhado formatado em reais brasileiros (BRL). Tipo: STRING."),
+    VL_LIQUIDADO_BRL OPTIONS(description="Valor liquidado formatado em reais brasileiros (BRL). Tipo: STRING."),
+    VL_PAGO_BRL OPTIONS(description="Valor pago formatado em reais brasileiros (BRL). Tipo: STRING."),
+    TX_EXECUCAO_PCT OPTIONS(description="Taxa percentual de execução orçamentária formatada com símbolo de porcentagem (%). Tipo: STRING."),
+    TX_LIQUIDACAO_PCT OPTIONS(description="Taxa percentual de liquidação formatada com símbolo de porcentagem (%). Tipo: STRING."),
+    PC_REPRESENTATIVIDADE_PAGO_PCT OPTIONS(description="Share de representatividade do valor pago formatado com símbolo de porcentagem (%). Tipo: STRING."),
     DH_PROCESSAMENTO OPTIONS(description="Timestamp UTC de materialização do Data Mart Gold de origem."),
     DS_RESUMO_SEMANTICO OPTIONS(description="Narrativa em linguagem natural formatada para indexação vetorial e RAG no Vertex AI. Sintetiza a destinação setorial, representatividade e evolução temporal.")
 )
@@ -47,21 +53,27 @@ SELECT
     PC_REPRESENTATIVIDADE_PAGO,
     VL_PAGO_ANO_ANTERIOR,
     TX_CRESCIMENTO_YOY_PAGO,
+    CONCAT('R$ ', FORMAT("%'.2f", COALESCE(VL_EMPENHADO, 0.0))) AS VL_EMPENHADO_BRL,
+    CONCAT('R$ ', FORMAT("%'.2f", COALESCE(VL_LIQUIDADO, 0.0))) AS VL_LIQUIDADO_BRL,
+    CONCAT('R$ ', FORMAT("%'.2f", COALESCE(VL_PAGO, 0.0))) AS VL_PAGO_BRL,
+    CONCAT(FORMAT("%.2f", COALESCE(TX_EXECUCAO, 0.0)), '%') AS TX_EXECUCAO_PCT,
+    CONCAT(FORMAT("%.2f", COALESCE(TX_LIQUIDACAO, 0.0)), '%') AS TX_LIQUIDACAO_PCT,
+    CONCAT(FORMAT("%.2f", COALESCE(PC_REPRESENTATIVIDADE_PAGO, 0.0)), '%') AS PC_REPRESENTATIVIDADE_PAGO_PCT,
     DH_PROCESSAMENTO,
     CONCAT(
-        'Em ', CAST(DT_ANO AS STRING), ', a política pública na Função ', DS_FUNCAO, 
-        ' (Subfunção: ', DS_SUBFUNCAO, ', Tipo: ', DS_TIPO_EMENDA, 
+        'Em ', CAST(DT_ANO AS STRING), ', a política pública na Função ', COALESCE(DS_FUNCAO, 'Geral'), 
+        ' (Subfunção: ', COALESCE(DS_SUBFUNCAO, 'Geral'), ', Tipo: ', COALESCE(DS_TIPO_EMENDA, 'Geral'), 
         ') recebeu ', CAST(QTD_EMENDAS AS STRING), ' emenda(s), somando R$ ', 
-        FORMAT("%'.2f", VL_EMPENHADO), ' empenhados e R$ ', 
-        FORMAT("%'.2f", VL_PAGO), ' pagos (Taxa de Execução: ', 
-        IFNULL(CAST(TX_EXECUCAO AS STRING), '0.00'), '%). A área representou ', 
-        IFNULL(CAST(PC_REPRESENTATIVIDADE_PAGO AS STRING), '0.00'), 
+        COALESCE(FORMAT("%'.2f", VL_EMPENHADO), '0.00'), ' empenhados e R$ ', 
+        COALESCE(FORMAT("%'.2f", VL_PAGO), '0.00'), ' pagos (Taxa de Execução: ', 
+        COALESCE(CAST(TX_EXECUCAO AS STRING), '0.00'), '%). A área representou ', 
+        COALESCE(CAST(PC_REPRESENTATIVIDADE_PAGO AS STRING), '0.00'), 
         '% de todo o valor pago em emendas no ano, com tendência anual de ',
         CASE 
             WHEN TX_CRESCIMENTO_YOY_PAGO IS NULL THEN 'Sem base de comparação anterior'
             WHEN TX_CRESCIMENTO_YOY_PAGO > 5.0 THEN CONCAT('Crescimento (+', CAST(TX_CRESCIMENTO_YOY_PAGO AS STRING), '%)')
             WHEN TX_CRESCIMENTO_YOY_PAGO < -5.0 THEN CONCAT('Retração (', CAST(TX_CRESCIMENTO_YOY_PAGO AS STRING), '%)')
-            ELSE CONCAT('Estabilidade (', CAST(TX_CRESCIMENTO_YOY_PAGO AS STRING), '%)')
+            ELSE CONCAT('Estabilidade (', COALESCE(CAST(TX_CRESCIMENTO_YOY_PAGO AS STRING), '0.00'), '%)')
         END, '.'
     ) AS DS_RESUMO_SEMANTICO
 FROM `project-f2711ebc-82b0-49cb-b84.3_gold.tbl_politicas_publicas`;

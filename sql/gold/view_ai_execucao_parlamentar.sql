@@ -15,6 +15,12 @@ CREATE OR REPLACE VIEW `project-f2711ebc-82b0-49cb-b84.3_gold.view_ai_execucao_p
     VL_RESTOS_PAGOS OPTIONS(description="Total de Restos a Pagar efetivamente quitados. Unidade: Reais (BRL)."),
     TX_EXECUCAO OPTIONS(description="Taxa de execução percentual (VL_PAGO / VL_EMPENHADO * 100). Regra para IA: NUNCA use AVG(TX_EXECUCAO) ao agrupar; recalcule com ROUND(SAFE_DIVIDE(SUM(VL_PAGO), SUM(VL_EMPENHADO)) * 100, 2)."),
     TX_LIQUIDACAO OPTIONS(description="Taxa de liquidação percentual (VL_LIQUIDADO / VL_EMPENHADO * 100). Regra para IA: NUNCA use AVG(TX_LIQUIDACAO) ao agrupar; recalcule com ROUND(SAFE_DIVIDE(SUM(VL_LIQUIDADO), SUM(VL_EMPENHADO)) * 100, 2)."),
+    VL_EMPENHADO_BRL OPTIONS(description="Valor empenhado formatado em reais brasileiros (BRL). Tipo: STRING."),
+    VL_LIQUIDADO_BRL OPTIONS(description="Valor liquidado formatado em reais brasileiros (BRL). Tipo: STRING."),
+    VL_PAGO_BRL OPTIONS(description="Valor pago formatado em reais brasileiros (BRL). Tipo: STRING."),
+    VL_RESTOS_SALDO_A_PAGAR_BRL OPTIONS(description="Saldo líquido de Restos a Pagar formatado em reais brasileiros (BRL). Tipo: STRING."),
+    TX_EXECUCAO_PCT OPTIONS(description="Taxa percentual de execução orçamentária formatada com símbolo de porcentagem (%). Tipo: STRING."),
+    TX_LIQUIDACAO_PCT OPTIONS(description="Taxa percentual de liquidação formatada com símbolo de porcentagem (%). Tipo: STRING."),
     DH_PROCESSAMENTO OPTIONS(description="Timestamp UTC de materialização do Data Mart Gold de origem."),
     DS_RESUMO_SEMANTICO OPTIONS(description="Narrativa em linguagem natural formatada para indexação vetorial e RAG no Vertex AI. Sintetiza parlamentar, ano, modalidade, volumes e taxa de execução.")
 )
@@ -29,7 +35,7 @@ SELECT
     DS_AUTOR,
     DS_TIPO_EMENDA,
     SG_UF,
-    (CD_AUTOR != -1) AS FL_AUTOR_IDENTIFICADO,
+    (COALESCE(CD_AUTOR, -1) != -1) AS FL_AUTOR_IDENTIFICADO,
     QTD_EMENDAS,
     VL_EMPENHADO,
     VL_LIQUIDADO,
@@ -40,15 +46,21 @@ SELECT
     VL_RESTOS_PAGOS,
     TX_EXECUCAO,
     TX_LIQUIDACAO,
+    CONCAT('R$ ', FORMAT("%'.2f", COALESCE(VL_EMPENHADO, 0.0))) AS VL_EMPENHADO_BRL,
+    CONCAT('R$ ', FORMAT("%'.2f", COALESCE(VL_LIQUIDADO, 0.0))) AS VL_LIQUIDADO_BRL,
+    CONCAT('R$ ', FORMAT("%'.2f", COALESCE(VL_PAGO, 0.0))) AS VL_PAGO_BRL,
+    CONCAT('R$ ', FORMAT("%'.2f", COALESCE(VL_RESTOS_SALDO_A_PAGAR, 0.0))) AS VL_RESTOS_SALDO_A_PAGAR_BRL,
+    CONCAT(FORMAT("%.2f", COALESCE(TX_EXECUCAO, 0.0)), '%') AS TX_EXECUCAO_PCT,
+    CONCAT(FORMAT("%.2f", COALESCE(TX_LIQUIDACAO, 0.0)), '%') AS TX_LIQUIDACAO_PCT,
     DH_PROCESSAMENTO,
     CONCAT(
-        'No exercício de ', CAST(DT_ANO AS STRING), ', o parlamentar/autor ', DS_AUTOR, 
-        ' (UF: ', SG_UF, ', Código: ', CAST(CD_AUTOR AS STRING), ', Tipo: ', DS_TIPO_EMENDA, 
+        'No exercício de ', CAST(DT_ANO AS STRING), ', o parlamentar/autor ', COALESCE(NULLIF(DS_AUTOR, ''), 'Não informado'), 
+        ' (UF: ', COALESCE(SG_UF, 'NACI'), ', Código: ', COALESCE(CAST(CD_AUTOR AS STRING), 'Não informado'), ', Tipo: ', COALESCE(DS_TIPO_EMENDA, 'Geral'), 
         ') destinou ', CAST(QTD_EMENDAS AS STRING), ' emenda(s), somando R$ ', 
-        FORMAT("%'.2f", VL_EMPENHADO), ' empenhados, R$ ', 
-        FORMAT("%'.2f", VL_LIQUIDADO), ' liquidados e R$ ', 
-        FORMAT("%'.2f", VL_PAGO), ' pagos (Taxa de Execução: ', 
-        IFNULL(CAST(TX_EXECUCAO AS STRING), '0.00'), '%). Saldo restante a pagar de Restos a Pagar: R$ ', 
-        FORMAT("%'.2f", VL_RESTOS_SALDO_A_PAGAR), '.'
+        COALESCE(FORMAT("%'.2f", VL_EMPENHADO), '0.00'), ' empenhados, R$ ', 
+        COALESCE(FORMAT("%'.2f", VL_LIQUIDADO), '0.00'), ' liquidados e R$ ', 
+        COALESCE(FORMAT("%'.2f", VL_PAGO), '0.00'), ' pagos (Taxa de Execução: ', 
+        COALESCE(CAST(TX_EXECUCAO AS STRING), '0.00'), '%). Saldo restante a pagar de Restos a Pagar: R$ ', 
+        COALESCE(FORMAT("%'.2f", VL_RESTOS_SALDO_A_PAGAR), '0.00'), '.'
     ) AS DS_RESUMO_SEMANTICO
 FROM `project-f2711ebc-82b0-49cb-b84.3_gold.tbl_execucao_parlamentar`;

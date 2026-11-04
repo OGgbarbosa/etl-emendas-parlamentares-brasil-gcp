@@ -18,6 +18,10 @@ CREATE OR REPLACE VIEW `project-f2711ebc-82b0-49cb-b84.3_gold.view_ai_ranking_fa
     DT_ULTIMO_RECEBIMENTO_ANO OPTIONS(description="Data da última transferência registrada para o favorecido neste exercício fiscal."),
     DT_PRIMEIRO_RECEBIMENTO_HISTORICO OPTIONS(description="Data da primeiríssima transferência recebida pelo favorecido em toda a base de dados."),
     DT_ULTIMO_RECEBIMENTO_HISTORICO OPTIONS(description="Data da mais recente transferência recebida pelo favorecido em toda a base de dados."),
+    VL_RECEBIDO_ANO_BRL OPTIONS(description="Valor total recebido no ano formatado em reais brasileiros (BRL). Tipo: STRING."),
+    VL_RECEBIDO_ACUMULADO_ATE_ANO_BRL OPTIONS(description="Valor acumulado recebido até o ano formatado em reais brasileiros (BRL). Tipo: STRING."),
+    VL_RECEBIDO_TOTAL_HISTORICO_BRL OPTIONS(description="Valor total histórico acumulado formatado em reais brasileiros (BRL). Tipo: STRING."),
+    TKM_RECEBIDO_POR_PARLAMENTAR_BRL OPTIONS(description="Ticket médio recebido por parlamentar formatado em reais brasileiros (BRL). Tipo: STRING."),
     DH_PROCESSAMENTO OPTIONS(description="Timestamp UTC de materialização do Data Mart Gold de origem."),
     DS_RESUMO_SEMANTICO OPTIONS(description="Narrativa em linguagem natural formatada para indexação vetorial e RAG no Vertex AI. Sintetiza beneficiário, localização, montante recebido e relação com parlamentares.")
 )
@@ -46,16 +50,20 @@ SELECT
     DT_ULTIMO_RECEBIMENTO_ANO,
     DT_PRIMEIRO_RECEBIMENTO_HISTORICO,
     DT_ULTIMO_RECEBIMENTO_HISTORICO,
+    CONCAT('R$ ', FORMAT("%'.2f", COALESCE(VL_RECEBIDO_ANO, 0.0))) AS VL_RECEBIDO_ANO_BRL,
+    CONCAT('R$ ', FORMAT("%'.2f", COALESCE(VL_RECEBIDO_ACUMULADO_ATE_ANO, 0.0))) AS VL_RECEBIDO_ACUMULADO_ATE_ANO_BRL,
+    CONCAT('R$ ', FORMAT("%'.2f", COALESCE(VL_RECEBIDO_TOTAL_HISTORICO, 0.0))) AS VL_RECEBIDO_TOTAL_HISTORICO_BRL,
+    CONCAT('R$ ', FORMAT("%'.2f", COALESCE(TKM_RECEBIDO_POR_PARLAMENTAR, 0.0))) AS TKM_RECEBIDO_POR_PARLAMENTAR_BRL,
     DH_PROCESSAMENTO,
     CONCAT(
-        'No ano de ', CAST(DT_ANO AS STRING), ', o favorecido ', DS_FAVORECIDO, 
-        ' (Doc/Código: ', CD_FAVORECIDO, ', Tipo: ', DS_TIPO_FAVORECIDO, 
-        ', UF: ', SG_UF_FAVORECIDO, ', Natureza: ', DS_NATUREZA_JURIDICA, 
-        ') recebeu R$ ', FORMAT("%'.2f", VL_RECEBIDO_ANO), ' em ', 
+        'No ano de ', CAST(DT_ANO AS STRING), ', o favorecido ', COALESCE(DS_FAVORECIDO, 'Não informado'), 
+        ' (Doc/Código: ', COALESCE(CD_FAVORECIDO, 'Sem código'), ', Tipo: ', COALESCE(DS_TIPO_FAVORECIDO, 'Não informado'), 
+        ', UF: ', COALESCE(SG_UF_FAVORECIDO, 'NACI'), ', Natureza: ', COALESCE(DS_NATUREZA_JURIDICA, 'Não informada'), 
+        ') recebeu R$ ', COALESCE(FORMAT("%'.2f", VL_RECEBIDO_ANO), '0.00'), ' em ', 
         CAST(QTD_TRANSFERENCIAS_RECEBIDAS AS STRING), ' transferência(s) ao longo de ', 
         CAST(QTD_MESES_COM_REPASSE AS STRING), ' mês(es). Os repasses originaram-se de ', 
         CAST(QTD_PARLAMENTARES_DISTINTOS_ANO AS STRING), ' parlamentar(es) e ', 
         CAST(QTD_EMENDAS_DISTINTAS_ANO AS STRING), ' emenda(s). No total histórico acumulado em toda a base, o beneficiário soma R$ ', 
-        FORMAT("%'.2f", VL_RECEBIDO_TOTAL_HISTORICO), '.'
+        COALESCE(FORMAT("%'.2f", VL_RECEBIDO_TOTAL_HISTORICO), '0.00'), '.'
     ) AS DS_RESUMO_SEMANTICO
 FROM `project-f2711ebc-82b0-49cb-b84.3_gold.tbl_ranking_favorecidos`;

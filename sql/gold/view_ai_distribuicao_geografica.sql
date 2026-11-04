@@ -14,6 +14,12 @@ CREATE OR REPLACE VIEW `project-f2711ebc-82b0-49cb-b84.3_gold.view_ai_distribuic
     VL_CONVENIO OPTIONS(description="Valor total pactuado em convênios federais para esta localidade (sem duplicação N:N). Unidade: Reais (BRL)."),
     TKM_PAGO_POR_EMENDA OPTIONS(description="Ticket médio pago por emenda destinada à localidade (VL_PAGO / QTD_EMENDAS). Regra para IA: NUNCA tire média de médias; recalcule com ROUND(SAFE_DIVIDE(SUM(VL_PAGO), SUM(QTD_EMENDAS)), 2)."),
     TX_EXECUCAO OPTIONS(description="Taxa de execução percentual (VL_PAGO / VL_EMPENHADO * 100). Regra para IA: NUNCA use AVG(TX_EXECUCAO) ao agrupar; recalcule com ROUND(SAFE_DIVIDE(SUM(VL_PAGO), SUM(VL_EMPENHADO)) * 100, 2)."),
+    VL_EMPENHADO_BRL OPTIONS(description="Valor empenhado formatado em reais brasileiros (BRL). Tipo: STRING."),
+    VL_LIQUIDADO_BRL OPTIONS(description="Valor liquidado formatado em reais brasileiros (BRL). Tipo: STRING."),
+    VL_PAGO_BRL OPTIONS(description="Valor pago formatado em reais brasileiros (BRL). Tipo: STRING."),
+    VL_CONVENIO_BRL OPTIONS(description="Valor total pactuado em convênios formatado em reais brasileiros (BRL). Tipo: STRING."),
+    TKM_PAGO_POR_EMENDA_BRL OPTIONS(description="Ticket médio pago por emenda formatado em reais brasileiros (BRL). Tipo: STRING."),
+    TX_EXECUCAO_PCT OPTIONS(description="Taxa percentual de execução orçamentária formatada com símbolo de porcentagem (%). Tipo: STRING."),
     DH_PROCESSAMENTO OPTIONS(description="Timestamp UTC de materialização do Data Mart Gold de origem."),
     DS_RESUMO_SEMANTICO OPTIONS(description="Narrativa em linguagem natural formatada para indexação vetorial e RAG no Vertex AI. Sintetiza localidade, região, âmbito, volume financeiro e convênios.")
 )
@@ -38,17 +44,23 @@ SELECT
     VL_CONVENIO,
     TKM_PAGO_POR_EMENDA,
     TX_EXECUCAO,
+    CONCAT('R$ ', FORMAT("%'.2f", COALESCE(VL_EMPENHADO, 0.0))) AS VL_EMPENHADO_BRL,
+    CONCAT('R$ ', FORMAT("%'.2f", COALESCE(VL_LIQUIDADO, 0.0))) AS VL_LIQUIDADO_BRL,
+    CONCAT('R$ ', FORMAT("%'.2f", COALESCE(VL_PAGO, 0.0))) AS VL_PAGO_BRL,
+    CONCAT('R$ ', FORMAT("%'.2f", COALESCE(VL_CONVENIO, 0.0))) AS VL_CONVENIO_BRL,
+    CONCAT('R$ ', FORMAT("%'.2f", COALESCE(TKM_PAGO_POR_EMENDA, 0.0))) AS TKM_PAGO_POR_EMENDA_BRL,
+    CONCAT(FORMAT("%.2f", COALESCE(TX_EXECUCAO, 0.0)), '%') AS TX_EXECUCAO_PCT,
     DH_PROCESSAMENTO,
     CONCAT(
-        'No ano de ', CAST(DT_ANO AS STRING), ', a localidade ', DS_MUNICIPIO, 
-        ' (UF: ', SG_UF, ', Região: ', SG_REGIAO, ', Âmbito: ', DS_AMBITO_GEOGRAFICO, 
-        ', IBGE: ', CAST(CD_MUNICIPIO_IBGE AS STRING), ') recebeu ', 
+        'No ano de ', CAST(DT_ANO AS STRING), ', a localidade ', COALESCE(DS_MUNICIPIO, 'Não informada'), 
+        ' (UF: ', COALESCE(SG_UF, 'NACI'), ', Região: ', COALESCE(SG_REGIAO, 'Nacional'), ', Âmbito: ', COALESCE(DS_AMBITO_GEOGRAFICO, 'Geral'), 
+        ', IBGE: ', COALESCE(CAST(CD_MUNICIPIO_IBGE AS STRING), 'Sem código'), ') recebeu ', 
         CAST(QTD_EMENDAS AS STRING), ' emenda(s) parlamentar(es) e ', 
         CAST(QTD_CONVENIOS AS STRING), ' convênio(s). Total empenhado: R$ ', 
-        FORMAT("%'.2f", VL_EMPENHADO), '; Total liquidado: R$ ', 
-        FORMAT("%'.2f", VL_LIQUIDADO), '; Total pago: R$ ', 
-        FORMAT("%'.2f", VL_PAGO), ' (Taxa de Execução: ', 
-        IFNULL(CAST(TX_EXECUCAO AS STRING), '0.00'), '%). Valor pactuado em convênios: R$ ', 
-        FORMAT("%'.2f", VL_CONVENIO), '.'
+        COALESCE(FORMAT("%'.2f", VL_EMPENHADO), '0.00'), '; Total liquidado: R$ ', 
+        COALESCE(FORMAT("%'.2f", VL_LIQUIDADO), '0.00'), '; Total pago: R$ ', 
+        COALESCE(FORMAT("%'.2f", VL_PAGO), '0.00'), ' (Taxa de Execução: ', 
+        COALESCE(CAST(TX_EXECUCAO AS STRING), '0.00'), '%). Valor pactuado em convênios: R$ ', 
+        COALESCE(FORMAT("%'.2f", VL_CONVENIO), '0.00'), '.'
     ) AS DS_RESUMO_SEMANTICO
 FROM `project-f2711ebc-82b0-49cb-b84.3_gold.tbl_distribuicao_geografica`;
