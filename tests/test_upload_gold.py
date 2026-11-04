@@ -1,3 +1,4 @@
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -5,6 +6,7 @@ import pytest
 from etl_emendas_parlamentares.ingestao.upload_gold import (
     executar_script_gold,
     garantir_dataset_existe,
+    ordenar_scripts_gold,
     preparar_sql_query,
     upload_gold,
 )
@@ -38,6 +40,31 @@ def test_preparar_sql_query():
     assert "meu-projeto-prod" in resultado
     assert "silver_custom" in resultado
     assert "project-f2711ebc-82b0-49cb-b84" not in resultado
+
+
+def test_ordenar_scripts_gold():
+    scripts = [
+        Path("sql/gold/view_ai_execucao_parlamentar.sql"),
+        Path("sql/gold/gold_execucao_parlamentar.sql"),
+        Path("sql/gold/view_ai_distribuicao_geografica.sql"),
+        Path("sql/gold/gold_distribuicao_geografica.sql"),
+    ]
+
+    ordenados = ordenar_scripts_gold(scripts, incluir_views_semanticas=True)
+    nomes = [s.name for s in ordenados]
+    assert nomes == [
+        "gold_distribuicao_geografica.sql",
+        "gold_execucao_parlamentar.sql",
+        "view_ai_distribuicao_geografica.sql",
+        "view_ai_execucao_parlamentar.sql",
+    ]
+
+    somente_tabelas = ordenar_scripts_gold(scripts, incluir_views_semanticas=False)
+    nomes_tabelas = [s.name for s in somente_tabelas]
+    assert nomes_tabelas == [
+        "gold_distribuicao_geografica.sql",
+        "gold_execucao_parlamentar.sql",
+    ]
 
 
 def test_executar_script_gold_sucesso(tmp_path):
@@ -84,12 +111,13 @@ def test_upload_gold_execucao_completa(mock_get_client, tmp_path):
 
     pasta_sql = tmp_path / "gold"
     pasta_sql.mkdir()
-    (pasta_sql / "mart1.sql").write_text("SELECT 1;", encoding="utf-8")
-    (pasta_sql / "mart2.sql").write_text("SELECT 2;", encoding="utf-8")
+    (pasta_sql / "view_ai_teste.sql").write_text("SELECT 2;", encoding="utf-8")
+    (pasta_sql / "gold_teste.sql").write_text("SELECT 1;", encoding="utf-8")
 
     resultado = upload_gold(diretorio_sql=pasta_sql)
 
     assert len(resultado) == 2
-    assert "mart1.sql" in resultado
-    assert "mart2.sql" in resultado
+    # Garante que gold_teste roda antes de view_ai_teste
+    assert resultado[0] == "gold_teste.sql"
+    assert resultado[1] == "view_ai_teste.sql"
     assert mock_client.query.call_count == 2

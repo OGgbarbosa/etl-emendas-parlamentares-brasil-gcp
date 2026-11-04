@@ -7,7 +7,7 @@
 
 Pipeline de Engenharia de Dados para extração, tratamento e carga analítica dos dados abertos de **Emendas Parlamentares do Brasil**, utilizando a plataforma **Google Cloud Platform (GCP)** com processamento colunar em memória via **Polars**.
 
-> **Status atual:** camadas **Raw, Bronze e Silver (fatos)** implementadas e executando de ponta a ponta em ~2 minutos. **Gold com os 5 Data Marts modelados em SQL**; scraping, RAG com Gemini e dashboards Streamlit estão em desenvolvimento (veja o [Roadmap](#️-roadmap-de-evolução) e a tabela de [Decisões de Projeto](#-decisões-de-projeto-e-status)).
+> **Status atual:** camadas **Raw, Bronze, Silver (fatos)** e **Gold (5 Data Marts físicos + 5 Views Semânticas de Consumo com metadados para IA)** implementadas e testadas com 73 testes automatizados. Scraping, RAG com Gemini e dashboards Streamlit estão em desenvolvimento (veja o [Roadmap](#️-roadmap-de-evolução) e a tabela de [Decisões de Projeto](#-decisões-de-projeto-e-status)).
 
 ---
 
@@ -167,14 +167,20 @@ projeto_emendas/
 ├── pyproject.toml                     # Metadados, dependências, ruff e pytest configs
 ├── uv.lock                            # Lockfile reproduzível do uv
 ├── .env                               # Variáveis de ambiente (ignorado no git)
-├── app/                               # Aplicação Web Streamlit (Multi-páginas, em desenvolvimento)
-│   ├── Home.py                        # Ponto de entrada e visão geral do portal
+├── .streamlit/
+│   └── config.toml                    # Configuração de tema Dark & Blue
+├── app/                               # Aplicação Web Streamlit (Multi-páginas)
+│   ├── Home.py                        # Ponto de entrada, Hero Banner e KPIs macro
+│   ├── utils/                         # Camada utilitária do frontend
+│   │   ├── db.py                      # Conexão e cache BigQuery (@st.cache_data)
+│   │   ├── formatters.py              # Formatação monetária (BRL), % e CNPJ/CPF
+│   │   └── styles.py                  # Design System, CSS Glassmorphism e cards
 │   └── pages/
-│       ├── 1_📊_Visao_Geral.py        # KPIs macro e métricas orçamentárias
-│       ├── 2_🏛️_Parlamentares.py       # Raio-X por deputado e senador
-│       ├── 3_🗺️_Mapa_Brasil.py         # Distribuição geográfica e municipal
-│       ├── 4_🏢_Beneficiarios.py       # Maiores recebedores e fornecedores
-│       └── 5_🤖_Assistente_IA.py       # Chatbot interativo com Gemini (Vertex AI)
+│       ├── 1_📊_Visao_Geral.py        # Macro-orçamento, Treemap setorial e YoY
+│       ├── 2_🏛️_Parlamentares.py       # Raio-X por congressista e quadrante de eficiência
+│       ├── 3_🗺️_Mapa_Brasil.py         # Distribuição geográfica e ranking municipal
+│       ├── 4_🏢_Beneficiarios.py       # Maiores recebedores e painel de convênios
+│       └── 5_🤖_Assistente_IA.py       # Chatbot inteligente com Gemini e views semânticas
 ├── database/                          # Dados brutos CSV locais (Portal da Transparência)
 ├── database_sample/                   # Amostras reduzidas para execução de testes em CI
 ├── data/
@@ -182,12 +188,17 @@ projeto_emendas/
 │   ├── silver/                        # Parquets gerados da Silver (fato_emendas, fato_convenios, fato_favorecidos)
 │   └── gold/                          # Diretório reservado para artefatos compilados da Gold
 ├── sql/
-│   └── gold/                          # Scripts SQL dos Data Marts (em desenvolvimento)
+│   └── gold/                          # Scripts SQL dos Data Marts e Views Semânticas de Consumo
 │       ├── gold_execucao_parlamentar.sql
 │       ├── gold_distribuicao_geografica.sql
 │       ├── gold_politicas_publicas.sql
 │       ├── gold_ranking_favorecidos.sql
-│       └── gold_painel_convenios.sql
+│       ├── gold_painel_convenios.sql
+│       ├── view_ai_execucao_parlamentar.sql      # View Semântica IA c/ metadados e narrativa RAG
+│       ├── view_ai_distribuicao_geografica.sql   # View Semântica IA c/ metadados e narrativa RAG
+│       ├── view_ai_politicas_publicas.sql        # View Semântica IA c/ metadados e narrativa RAG
+│       ├── view_ai_ranking_favorecidos.sql       # View Semântica IA c/ metadados e narrativa RAG
+│       └── view_ai_painel_convenios.sql          # View Semântica IA c/ metadados e narrativa RAG
 ├── notebooks/
 │   └── projeto_inicial.ipynb          # Explorações interativas e prototipação de regras
 ├── src/
@@ -219,7 +230,10 @@ projeto_emendas/
     ├── test_silver_convenios.py       # Testes da transformação de fato_convenios
     ├── test_silver_favorecidos.py     # Testes da transformação de fato_favorecidos
     ├── test_upload_bronze.py          # Testes de envio para o Cloud Storage
-    └── test_upload_silver.py          # Testes de carga nativa no BigQuery
+    ├── test_upload_silver.py          # Testes de carga nativa no BigQuery
+    ├── test_upload_gold.py            # Testes de execução e ordenação da camada Gold
+    ├── test_views_semanticas.py       # Testes de integridade, DDL e metadados das views de IA
+    └── test_app_utils.py              # Testes dos utilitários de formatação e cache do Streamlit
 ```
 
 ---
@@ -255,7 +269,7 @@ GOOGLE_APPLICATION_CREDENTIALS="gcp-credentials.json"
 
 ### 2. Execução dos Testes e Validação de Código
 
-- Rodar suíte completa de testes unitários (48 testes):
+- Rodar suíte completa de testes unitários (73 testes):
   ```bash
   uv run pytest
   ```
