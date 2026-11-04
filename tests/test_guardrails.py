@@ -76,6 +76,28 @@ def test_validar_resposta_ia_bloqueio_credencial():
     assert "bloqueado" in res.texto_filtrado.lower()
 
 
+def test_validar_resposta_ia_bloqueio_credencial_com_nulo_prioridade_maxima():
+    texto = "Erro ao buscar dados (null): AIzaSyD9ABC1234567890123456789012345678"
+    res = validar_resposta_ia(texto)
+    assert res.valido is False
+    assert "bloqueado" in res.texto_filtrado.lower()
+
+
+def test_validar_resposta_ia_bloqueio_chave_privada_pem():
+    texto = "-----BEGIN RSA PRIVATE KEY-----\nMIIEowIBAAKCAQEA0...\n-----END RSA PRIVATE KEY-----"
+    res = validar_resposta_ia(texto)
+    assert res.valido is False
+    assert "bloqueado" in res.texto_filtrado.lower()
+
+
+def test_validar_resposta_ia_mascaramento_cpf_pii():
+    texto = "Repasse realizado para o favorecido CPF 123.456.789-01 no valor de R$ 10.000,00."
+    res = validar_resposta_ia(texto)
+    assert res.valido is True
+    assert "123.456.789-01" not in res.texto_filtrado
+    assert "***.456.789-**" in res.texto_filtrado
+
+
 def test_validar_consulta_sql():
     assert validar_consulta_sql("SELECT * FROM `3_gold.tbl_execucao_parlamentar`") is True
     assert validar_consulta_sql("WITH dados AS (SELECT 1) SELECT * FROM dados") is True
