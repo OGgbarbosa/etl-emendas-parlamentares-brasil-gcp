@@ -95,4 +95,4 @@ def test_portabilidade_sql_views_semanticas(diretorio_sql: Path, nome_view: str)
     )
     assert "meu-projeto-ia-teste" in query_ajustada
     assert "gold_prod" in query_ajustada
-    assert "project-f2711ebc-82b0-49cb-b84" not in query_ajustada
+    assert "{PROJECT_ID}" not in query_ajustada

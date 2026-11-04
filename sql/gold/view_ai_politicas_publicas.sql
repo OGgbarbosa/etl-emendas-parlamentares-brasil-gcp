@@ -1,4 +1,4 @@
-CREATE OR REPLACE VIEW `project-f2711ebc-82b0-49cb-b84.3_gold.view_ai_politicas_publicas` (
+CREATE OR REPLACE VIEW `{PROJECT_ID}.3_gold.view_ai_politicas_publicas` (
     DT_ANO OPTIONS(description="Ano de referência do orçamento da emenda parlamentar (exercício fiscal). Tipo: INT64."),
     CD_FUNCAO OPTIONS(description="Código numérico orçamentário da Função de Governo (ex.: 10 para Saúde, 12 para Educação)."),
     DS_FUNCAO OPTIONS(description="Nome descritivo da Função orçamentária / área temática de política pública (ex.: Saúde, Educação, Segurança Pública)."),
@@ -76,4 +76,4 @@ SELECT
             ELSE CONCAT('Estabilidade (', COALESCE(CAST(TX_CRESCIMENTO_YOY_PAGO AS STRING), '0.00'), '%)')
         END, '.'
     ) AS DS_RESUMO_SEMANTICO
-FROM `project-f2711ebc-82b0-49cb-b84.3_gold.tbl_politicas_publicas`;
+FROM `{PROJECT_ID}.3_gold.tbl_politicas_publicas`;

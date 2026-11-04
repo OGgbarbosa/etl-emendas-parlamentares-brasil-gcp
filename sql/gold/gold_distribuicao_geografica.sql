@@ -1,4 +1,4 @@
-CREATE OR REPLACE TABLE `project-f2711ebc-82b0-49cb-b84.3_gold.tbl_distribuicao_geografica`
+CREATE OR REPLACE TABLE `{PROJECT_ID}.3_gold.tbl_distribuicao_geografica`
 CLUSTER BY DT_ANO, SG_REGIAO, SG_UF, CD_MUNICIPIO_IBGE
 AS
 
@@ -8,7 +8,7 @@ WITH convenios_por_emenda AS (
         codigo_da_emenda,
         COUNT(DISTINCT numero_convenio) AS qtd_convenios,
         SUM(valor_convenio) AS total_valor_convenio
-    FROM `project-f2711ebc-82b0-49cb-b84.2_silver.fato_convenios`
+    FROM `{PROJECT_ID}.2_silver.fato_convenios`
     WHERE codigo_da_emenda != -1
     GROUP BY codigo_da_emenda
 ),
@@ -25,7 +25,7 @@ emendas_territorio AS (
         SUM(valor_empenhado) AS vl_empenhado,
         SUM(valor_liquidado) AS vl_liquidado,
         SUM(valor_pago) AS vl_pago
-    FROM `project-f2711ebc-82b0-49cb-b84.2_silver.fato_emendas`
+    FROM `{PROJECT_ID}.2_silver.fato_emendas`
     GROUP BY 1, 2, 3, 4, 5, 6
 ),
 

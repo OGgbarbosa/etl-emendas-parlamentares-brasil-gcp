@@ -1,4 +1,4 @@
-CREATE OR REPLACE VIEW `project-f2711ebc-82b0-49cb-b84.3_gold.view_ai_execucao_parlamentar` (
+CREATE OR REPLACE VIEW `{PROJECT_ID}.3_gold.view_ai_execucao_parlamentar` (
     DT_ANO OPTIONS(description="Ano de referência do orçamento da emenda parlamentar (exercício fiscal). Tipo: INT64."),
     CD_AUTOR OPTIONS(description="Código numérico único de identificação do autor/parlamentar na CGU/SIAFI. Sentinela: -1 indica ausência de código na fonte (ex.: RP9 Relator, Comissão RP8 ou dados legados de 2014)."),
     DS_AUTOR OPTIONS(description="Nome completo do autor da emenda (ex.: Deputado, Senador, Bancada, Comissão ou Relator Geral)."),
@@ -63,4 +63,4 @@ SELECT
         COALESCE(CAST(TX_EXECUCAO AS STRING), '0.00'), '%). Saldo restante a pagar de Restos a Pagar: R$ ', 
         COALESCE(FORMAT("%'.2f", VL_RESTOS_SALDO_A_PAGAR), '0.00'), '.'
     ) AS DS_RESUMO_SEMANTICO
-FROM `project-f2711ebc-82b0-49cb-b84.3_gold.tbl_execucao_parlamentar`;
+FROM `{PROJECT_ID}.3_gold.tbl_execucao_parlamentar`;

@@ -30,7 +30,7 @@ def test_garantir_dataset_existe_cria_quando_ausente():
 
 
 def test_preparar_sql_query():
-    sql = "SELECT * FROM `project-f2711ebc-82b0-49cb-b84.2_silver.fato_emendas`"
+    sql = "SELECT * FROM `{PROJECT_ID}.2_silver.fato_emendas`"
     resultado = preparar_sql_query(
         conteudo_sql=sql,
         projeto_destino="meu-projeto-prod",
@@ -39,7 +39,7 @@ def test_preparar_sql_query():
     )
     assert "meu-projeto-prod" in resultado
     assert "silver_custom" in resultado
-    assert "project-f2711ebc-82b0-49cb-b84" not in resultado
+    assert "{PROJECT_ID}" not in resultado
 
 
 def test_ordenar_scripts_gold():

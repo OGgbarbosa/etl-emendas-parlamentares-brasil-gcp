@@ -1,4 +1,4 @@
-CREATE OR REPLACE TABLE `project-f2711ebc-82b0-49cb-b84.3_gold.tbl_politicas_publicas`
+CREATE OR REPLACE TABLE `{PROJECT_ID}.3_gold.tbl_politicas_publicas`
 CLUSTER BY DT_ANO, DS_FUNCAO, DS_TIPO_EMENDA
 AS
 
@@ -20,7 +20,7 @@ WITH agregacao_setorial AS (
         ROUND(SUM(valor_liquidado), 2) AS VL_LIQUIDADO,
         ROUND(SUM(valor_pago), 2) AS VL_PAGO
 
-    FROM `project-f2711ebc-82b0-49cb-b84.2_silver.fato_emendas`
+    FROM `{PROJECT_ID}.2_silver.fato_emendas`
     GROUP BY 1, 2, 3, 4, 5, 6
 ),
 

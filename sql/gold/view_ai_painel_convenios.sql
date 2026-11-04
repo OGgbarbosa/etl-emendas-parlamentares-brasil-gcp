@@ -1,4 +1,4 @@
-CREATE OR REPLACE VIEW `project-f2711ebc-82b0-49cb-b84.3_gold.view_ai_painel_convenios` (
+CREATE OR REPLACE VIEW `{PROJECT_ID}.3_gold.view_ai_painel_convenios` (
     DT_ANO OPTIONS(description="Ano de publicação/celebração do convênio federal. Sentinela: -1 indica convênio com data não informada na fonte original. Tipo: INT64."),
     SG_UF OPTIONS(description="Sigla da Unidade Federativa da localidade do convenente ou execução do instrumento."),
     DS_CONVENENTE OPTIONS(description="Nome do ente público ou privado convenente (órgão executor, prefeitura ou entidade que assinou o convênio)."),
@@ -39,4 +39,4 @@ SELECT
         COALESCE(FORMAT("%'.2f", VL_TOTAL_CONVENIADO), '0.00'), ', com ticket médio de R$ ', 
         COALESCE(FORMAT("%'.2f", TKM_VALOR_POR_CONVENIO), '0.00'), ' por instrumento.'
     ) AS DS_RESUMO_SEMANTICO
-FROM `project-f2711ebc-82b0-49cb-b84.3_gold.tbl_painel_convenios`;
+FROM `{PROJECT_ID}.3_gold.tbl_painel_convenios`;
