@@ -13,6 +13,7 @@ from etl_emendas_parlamentares.processamento.csv_parquet import processar_csv_pa
 from etl_emendas_parlamentares.processamento.silver_convenios import processar_silver_fato_convenios
 from etl_emendas_parlamentares.processamento.silver_emendas import processar_silver_fato_emendas
 from etl_emendas_parlamentares.processamento.silver_favorecidos import processar_silver_fato_favorecidos
+from etl_emendas_parlamentares.scraping.pipeline_scraping import executar_pipeline_scraping
 
 
 def run_raw() -> None:
@@ -32,6 +33,10 @@ def run_silver() -> None:
 
 def run_gold() -> None:
     upload_gold()
+
+
+def run_scraping() -> None:
+    executar_pipeline_scraping()
 
 
 def pipeline() -> None:
