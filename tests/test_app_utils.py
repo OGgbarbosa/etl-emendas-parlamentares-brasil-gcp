@@ -10,6 +10,12 @@ from app.utils.formatters import (
     formatar_numero,
     formatar_percentual,
 )
+from app.utils.llm_vertex import (
+    construir_plano_nl2sql_dinamico,
+    extrair_parametros_nl,
+    gerar_plano_consulta_vertex,
+    sintetizar_resposta_vertex,
+)
 from app.utils.styles import renderizar_card_metrica, renderizar_hero
 
 
@@ -130,3 +136,51 @@ def test_skill_frontend_design_instalada():
     conteudo = caminho_skill.read_text(encoding="utf-8")
     assert "name: frontend-design" in conteudo
     assert "description:" in conteudo
+
+
+def test_extrair_parametros_nl_e_nl2sql():
+    params = extrair_parametros_nl("Quais os top 5 municípios da Bahia receberam recursos de Saúde em 2024?")
+    assert params["ano"] == 2024
+    assert params["uf"] == "BA"
+    assert params["funcao"] == "Saúde"
+    assert params["limite"] == 5
+
+    plano = construir_plano_nl2sql_dinamico(
+        "Quais municípios da Bahia receberam mais recursos em 2024?",
+        project_id="proj-teste",
+    )
+    assert plano.dominio == "municipio"
+    assert "SG_UF = 'BA'" in plano.sql_query
+    assert "DT_ANO = 2024" in plano.sql_query
+
+
+@patch("app.utils.llm_vertex.criar_cliente_vertex")
+def test_gerar_plano_e_sintese_vertex_mock(mock_criar_cliente):
+    mock_client = MagicMock()
+    mock_resp_sql = MagicMock()
+    mock_resp_sql.text = (
+        '{"intencao": "quantitativo", "dominio": "parlamentar", '
+        '"sql_query": "SELECT DT_ANO, DS_AUTOR, VL_PAGO FROM `proj.3_gold.view_ai_execucao_parlamentar` LIMIT 5", '
+        '"explicacao_consulta": "Top 5 parlamentares"}'
+    )
+    mock_client.models.generate_content.return_value = mock_resp_sql
+    mock_criar_cliente.return_value = mock_client
+
+    plano = gerar_plano_consulta_vertex("Quem mais destinou emendas?", project_id="proj")
+    assert plano.gerado_por_vertex is True
+    assert plano.dominio == "parlamentar"
+    assert "SELECT DT_ANO, DS_AUTOR, VL_PAGO" in plano.sql_query
+
+    mock_resp_sintese = MagicMock()
+    mock_resp_sintese.text = "Os parlamentares destinaram R$ 10.000.000,00 em emendas auditadas."
+    mock_client.models.generate_content.return_value = mock_resp_sintese
+
+    df_res = pd.DataFrame([{"DT_ANO": 2024, "DS_AUTOR": "Autor A", "VL_PAGO": 10000000.0}])
+    texto = sintetizar_resposta_vertex(
+        pergunta="Quem mais destinou emendas?",
+        df_resultado=df_res,
+        df_noticias=pd.DataFrame(),
+        plano=plano,
+        project_id="proj",
+    )
+    assert "R$ 10.000.000,00" in texto

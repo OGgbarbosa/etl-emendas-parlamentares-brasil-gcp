@@ -7,8 +7,13 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
+import etl_emendas_parlamentares.config.config as _cfg
 from etl_emendas_parlamentares.conexao.big_query import get_bigquery_client
-from etl_emendas_parlamentares.config.config import GOLD_DATASET
+
+DIRETORIO_SILVER_LOCAL = getattr(_cfg, "DIRETORIO_SILVER_LOCAL", "data/silver")
+GOLD_DATASET = getattr(_cfg, "GOLD_DATASET", "3_gold")
+SILVER_DATASET = getattr(_cfg, "SILVER_DATASET", "2_silver")
+TABELA_FATO_NOTICIAS = getattr(_cfg, "TABELA_FATO_NOTICIAS", "fato_noticias_contexto")
 
 logger = logging.getLogger(__name__)
 
@@ -58,6 +63,40 @@ def carregar_tabela_gold(
         if caminho_local.exists():
             return pd.read_parquet(caminho_local)
         return pd.DataFrame()
+
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def carregar_noticias_contexto(
+    fonte: str = "",
+    limite: int = 20,
+) -> pd.DataFrame:
+    """Carrega os artigos e notas técnicas de 2_silver.fato_noticias_contexto (com fallback local)."""
+    df = pd.DataFrame()
+    try:
+        client = get_bigquery_client()
+        projeto = client.project or os.getenv("GCP_PROJECT_ID", "")
+        sql = f"SELECT * FROM `{projeto}.{SILVER_DATASET}.{TABELA_FATO_NOTICIAS}`"
+        if fonte and fonte != "Todas":
+            fonte_limpa = fonte.replace("'", "")
+            sql += f" WHERE nome_fonte = '{fonte_limpa}'"
+        sql += " ORDER BY data_publicacao DESC"
+        if limite:
+            sql += f" LIMIT {int(limite)}"
+
+        df = client.query(sql).to_dataframe()
+    except Exception as e:
+        logger.warning("Falha ao consultar %s no BigQuery (%s). Usando fallback local...", TABELA_FATO_NOTICIAS, e)
+
+    if df.empty:
+        caminho_local = Path(DIRETORIO_SILVER_LOCAL) / f"{TABELA_FATO_NOTICIAS}.parquet"
+        if caminho_local.exists():
+            df = pd.read_parquet(caminho_local)
+            if fonte and fonte != "Todas" and "nome_fonte" in df.columns:
+                df = df[df["nome_fonte"] == fonte]
+            if limite:
+                df = df.head(limite)
+
+    return df
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
