@@ -1,6 +1,18 @@
-# Arquivos de ambiente
+# Arquivos de ambiente e segredos
+.env
+.env.*
 *.env
 *.env.*
+.streamlit/secrets.toml
+
+# Credenciais de Nuvem e Chaves
+gcp-credentials.json
+*credentials*.json
+*service_account*.json
+*service-account*.json
+*.pem
+*.key
+*.p12
 
 # Python cache
 __pycache__/
